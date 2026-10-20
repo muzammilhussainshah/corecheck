@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+package-lock.json
+next-env.d.ts
+
+# native mobile projects (Gradle/Xcode own these files)
+apps/mobile/android
+apps/mobile/ios

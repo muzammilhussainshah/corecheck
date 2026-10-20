@@ -1,0 +1,117 @@
+import { z } from 'zod';
+
+const flag = (fallback: boolean) =>
+  z
+    .enum(['true', 'false'])
+    .default(fallback ? 'true' : 'false')
+    .transform((value) => value === 'true');
+
+const positiveInt = (fallback: number) =>
+  z.coerce.number().int().positive().default(fallback);
+
+const envObject = z.object({
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
+  PORT: positiveInt(4000),
+
+  /** Postgres connection string (Supabase in staging and production). */
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required.'),
+  /**
+   * off: no TLS (local only). require: TLS without certificate checks.
+   * verify: TLS checked against DATABASE_CA_CERT (recommended for Supabase).
+   */
+  DATABASE_SSL: z.enum(['off', 'require', 'verify']).default('off'),
+  DATABASE_CA_CERT: z.string().optional(),
+  DATABASE_POOL_SIZE: positiveInt(10),
+  LOG_SQL: flag(false),
+
+  /** Server-side secret mixed into every PIN and password hash. */
+  PIN_PEPPER: z.string().min(32, 'PIN_PEPPER must be at least 32 characters.'),
+  /** 32-byte key (64 hex characters) that encrypts staff MFA secrets. */
+  MFA_ENCRYPTION_KEY: z
+    .string()
+    .regex(
+      /^[0-9a-fA-F]{64}$/,
+      'MFA_ENCRYPTION_KEY must be 64 hex characters.',
+    ),
+
+  /** Send session cookies over HTTPS only. Must be true in production. */
+  COOKIE_SECURE: flag(false),
+  /** Behind a proxy (Render), trust X-Forwarded-For for client addresses. */
+  TRUST_PROXY: flag(false),
+  RATE_LIMIT_ENABLED: flag(true),
+  /**
+   * Authenticator-app second factor for internal staff. Neither the FRD nor
+   * the ITDR requires it; off until the client asks for it.
+   */
+  STAFF_MFA_REQUIRED: flag(false),
+
+  WEB_SESSION_IDLE_MINUTES: positiveInt(30),
+  WEB_SESSION_MAX_HOURS: positiveInt(12),
+  MOBILE_SESSION_DAYS: positiveInt(30),
+  STAFF_SESSION_IDLE_MINUTES: positiveInt(30),
+  STAFF_SESSION_MAX_HOURS: positiveInt(8),
+
+  /** Where uploaded evidence is written (offline-sync proof of concept). */
+  STORAGE_DIR: z.string().default('./storage'),
+});
+
+export const envSchema = envObject.superRefine((env, ctx) => {
+  if (env.NODE_ENV !== 'production') return;
+  if (!env.COOKIE_SECURE) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['COOKIE_SECURE'],
+      message: 'COOKIE_SECURE must be true in production.',
+    });
+  }
+  if (env.DATABASE_SSL === 'off') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['DATABASE_SSL'],
+      message: 'DATABASE_SSL must not be off in production.',
+    });
+  }
+  if (env.DATABASE_SSL === 'verify' && !env.DATABASE_CA_CERT) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['DATABASE_CA_CERT'],
+      message: 'DATABASE_CA_CERT is required when DATABASE_SSL is verify.',
+    });
+  }
+});
+
+export type Env = z.output<typeof envSchema>;
+
+/** Just the database settings: enough for migrations, which need no secrets. */
+export const databaseEnvSchema = envObject.pick({
+  DATABASE_URL: true,
+  DATABASE_SSL: true,
+  DATABASE_CA_CERT: true,
+  DATABASE_POOL_SIZE: true,
+  LOG_SQL: true,
+});
+export type DatabaseEnv = z.output<typeof databaseEnvSchema>;
+
+/** Parses the environment, failing fast with every problem listed. */
+const parseOrThrow = <T>(
+  schema: z.ZodType<T>,
+  raw: Record<string, unknown>,
+): T => {
+  const result = schema.safeParse(raw);
+  if (!result.success) {
+    const problems = result.error.issues
+      .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+      .join('\n');
+    throw new Error(`Invalid environment configuration:\n${problems}`);
+  }
+  return result.data;
+};
+
+export const validateEnv = (raw: Record<string, unknown>): Env =>
+  parseOrThrow(envSchema, raw);
+
+export const validateDatabaseEnv = (
+  raw: Record<string, unknown>,
+): DatabaseEnv => parseOrThrow(databaseEnvSchema, raw);

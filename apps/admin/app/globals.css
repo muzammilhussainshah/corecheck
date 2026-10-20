@@ -1,0 +1,10 @@
+/*
+ * Mantine's styles live in their own cascade layer, placed after Tailwind's
+ * base (preflight) and before its utilities. Preflight therefore cannot reset
+ * Mantine components, and a Tailwind utility on a Mantine component still
+ * wins. Without this, utilities such as text-center lose to Mantine's own
+ * rules (the Table.Th alignment problem seen in CoreStock).
+ */
+@layer theme, base, mantine, components, utilities;
+
+@import 'tailwindcss';
