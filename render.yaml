@@ -1,0 +1,32 @@
+# Render Blueprint for the CoreCheck API (see docs/environments.md).
+# Render > New > Blueprint > pick this repository. Values marked
+# `sync: false` are asked for once when the Blueprint is first applied.
+services:
+  - type: web
+    name: corecheck-api-staging
+    runtime: node
+    branch: main
+    plan: free
+    buildCommand: npm ci --include=dev && npx turbo run build --filter=@corecheck/api
+    startCommand: npm run db:migrate:prod -w @corecheck/api && npm run start:prod -w @corecheck/api
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 24.11.0
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: 'true'
+      - key: TRUST_PROXY
+        value: 'true'
+      - key: DATABASE_SSL
+        value: verify
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_CA_CERT
+        sync: false
+      - key: PIN_PEPPER
+        sync: false
+      - key: MFA_ENCRYPTION_KEY
+        sync: false
