@@ -41,7 +41,7 @@ export const newPinProblem = (pin: string): string | null => {
   if (!PIN_PATTERN.test(pin))
     return `Your PIN must be exactly ${PIN_LENGTH} digits.`;
   if (isWeakPin(pin)) {
-    return 'That PIN is too easy to guess. Avoid repeated digits and sequences such as 123456.';
+    return 'This PIN is too easy to guess. Choose a PIN without repeated or consecutive digits.';
   }
   return null;
 };

@@ -68,7 +68,7 @@ export function ChangePinForm({
           secret
           label="New PIN"
           focusKey={focusNew}
-          description="Six digits. Avoid repeated digits and sequences such as 123456."
+          description="Enter 6 digits, avoiding repeated or consecutive numbers."
           {...form.getInputProps('newPin')}
         />
         <CodeInput
