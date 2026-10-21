@@ -214,7 +214,7 @@ export class UsersService {
 
     const names = await this.scopeNames(page);
     return {
-      items: page.map((row) => this.toSummary(row, names)),
+      items: page.map((row) => this.toSummary(row, names, actorFrom(auth))),
       total,
       page: query.page,
       pageSize: query.pageSize,
@@ -815,6 +815,7 @@ export class UsersService {
   private toSummary(
     row: UserRow,
     names: Record<ScopeField, Map<string, string>>,
+    actor: Actor,
   ): UserSummary {
     const refs = (field: ScopeField): IdName[] =>
       row[field]
@@ -837,16 +838,16 @@ export class UsersService {
       disciplines: refs('disciplineIds'),
       lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
+      capabilities: capabilitiesFor(actor, toTarget(row)),
     };
   }
 
   private async toDetail(row: UserRow, actor: Actor): Promise<UserDetail> {
     return {
-      ...this.toSummary(row, await this.scopeNames([row])),
+      ...this.toSummary(row, await this.scopeNames([row]), actor),
       mustChangePin: row.mustChangePin,
       failedPinAttempts: row.failedPinAttempts,
       lockedAt: row.lockedAt?.toISOString() ?? null,
-      capabilities: capabilitiesFor(actor, toTarget(row)),
     };
   }
 }

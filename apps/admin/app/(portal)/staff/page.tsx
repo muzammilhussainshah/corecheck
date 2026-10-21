@@ -16,7 +16,7 @@ import { schemaResolver, useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { useOpenFromQuery } from '../../../lib/useOpenFromQuery';
 import {
-  IconDots,
+  IconDotsVertical,
   IconKey,
   IconPlus,
   IconShieldOff,
@@ -184,9 +184,9 @@ export default function StaffPage() {
     },
     {
       key: 'actions',
-      header: '',
+      header: 'Actions',
       align: 'right',
-      width: 60,
+      width: 90,
       render: (member) =>
         member.id !== me?.id && (
           <Menu position="bottom-end">
@@ -195,7 +195,7 @@ export default function StaffPage() {
                 variant="subtle"
                 aria-label={`Actions for ${member.name}`}
               >
-                <IconDots size={18} />
+                <IconDotsVertical size={18} />
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>

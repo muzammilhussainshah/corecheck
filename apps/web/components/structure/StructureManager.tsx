@@ -14,7 +14,7 @@ import {
 import { useForm } from '@mantine/form';
 import {
   IconArchive,
-  IconDots,
+  IconDotsVertical,
   IconPencil,
   IconPlus,
   IconRestore,
@@ -126,9 +126,9 @@ export function StructureManager<T extends StructureItem>(props: Props<T>) {
     ...(props.extraColumns ?? []),
     {
       key: 'actions',
-      header: '',
+      header: 'Actions',
       align: 'right',
-      width: 60,
+      width: 90,
       render: (item) => (
         <Menu position="bottom-end">
           <Menu.Target>
@@ -136,7 +136,7 @@ export function StructureManager<T extends StructureItem>(props: Props<T>) {
               variant="subtle"
               aria-label={`Actions for ${item.name}`}
             >
-              <IconDots size={18} />
+              <IconDotsVertical size={18} />
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>

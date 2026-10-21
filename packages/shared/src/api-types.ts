@@ -90,6 +90,7 @@ export interface UserSummary {
   disciplines: IdName[];
   lastLoginAt: string | null;
   createdAt: string;
+  capabilities: UserCapabilities;
 }
 
 /** What the signed-in user may do to this user, so the UI can hide the rest. */
@@ -107,7 +108,6 @@ export interface UserDetail extends UserSummary {
   mustChangePin: boolean;
   failedPinAttempts: number;
   lockedAt: string | null;
-  capabilities: UserCapabilities;
 }
 
 /** Shown once, to the person who created or reset the account. */

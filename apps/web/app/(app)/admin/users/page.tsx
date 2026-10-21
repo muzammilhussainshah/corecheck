@@ -1,8 +1,11 @@
 'use client';
 
 import {
+  ActionIcon,
   Button,
   Group,
+  Menu,
+  Modal,
   MultiSelect,
   SimpleGrid,
   Stack,
@@ -10,7 +13,11 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import {
+  IconDotsVertical,
+  IconKey,
   IconLock,
+  IconLockOpen,
+  IconPencil,
   IconPlus,
   IconUserCheck,
   IconUserOff,
@@ -20,14 +27,18 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
   type ApiError,
+  type IssuedCredentials,
   type UserStatus,
   USER_STATUS_LABELS,
   USER_STATUSES,
   type UserSummary,
+  type UserWithCredentials,
 } from '@corecheck/shared';
 import {
   type Column,
   COLORS,
+  confirmAction,
+  CredentialsCard,
   DataTable,
   EmptyState,
   ErrorAlert,
@@ -43,7 +54,11 @@ import {
   DEFAULT_PAGE_SIZE,
 } from '@corecheck/ui';
 import { AppPageHeader } from '../../../../components/AppPageHeader';
-import { useSeatUsageQuery, useUsersQuery } from '../../../../lib/api';
+import {
+  useSeatUsageQuery,
+  useUserActionMutation,
+  useUsersQuery,
+} from '../../../../lib/api';
 import { useRoleOptions, useScopeOptions } from '../../../../lib/options';
 import { useSession } from '../../../../lib/session';
 
@@ -102,6 +117,11 @@ export default function UsersPage() {
   };
   const roles = useRoleOptions();
   const scope = useScopeOptions();
+  const [runAction] = useUserActionMutation();
+  const [issued, setIssued] = useState<{
+    credentials: IssuedCredentials;
+    name: string;
+  } | null>(null);
   const tz = me?.organisation.timeZone;
 
   const applied = Object.values(filters).filter(Boolean).length;
@@ -138,6 +158,105 @@ export default function UsersPage() {
       aria-label={`Filter by ${label}`}
     />
   );
+
+  const act = async (
+    user: UserSummary,
+    action: 'deactivate' | 'reactivate' | 'reset-pin' | 'unlock',
+  ) => {
+    const result = await runAction({ id: user.id, action });
+    if (result.error || action !== 'reset-pin') return;
+    setIssued({
+      credentials: (result.data as UserWithCredentials).credentials,
+      name: `${user.firstName} ${user.lastName}`,
+    });
+  };
+
+  const actions = (user: UserSummary) => {
+    const caps = user.capabilities;
+    const name = `${user.firstName} ${user.lastName}`;
+    const items = [
+      caps.canEdit && (
+        <Menu.Item
+          key="edit"
+          leftSection={<IconPencil size={14} />}
+          onClick={() => router.push(`/admin/users/${user.id}`)}
+        >
+          Edit
+        </Menu.Item>
+      ),
+      caps.canResetPin && (
+        <Menu.Item
+          key="reset"
+          leftSection={<IconKey size={14} />}
+          onClick={() =>
+            confirmAction({
+              title: 'Reset PIN?',
+              message: `${name} will get a new temporary PIN and be signed out. Their account is unlocked if it was locked.`,
+              confirmLabel: 'Reset PIN',
+              onConfirm: () => act(user, 'reset-pin'),
+            })
+          }
+        >
+          Reset PIN
+        </Menu.Item>
+      ),
+      caps.canUnlock && (
+        <Menu.Item
+          key="unlock"
+          leftSection={<IconLockOpen size={14} />}
+          onClick={() => act(user, 'unlock')}
+        >
+          Unlock
+        </Menu.Item>
+      ),
+      caps.canReactivate && (
+        <Menu.Item
+          key="reactivate"
+          leftSection={<IconUserCheck size={14} />}
+          onClick={() => act(user, 'reactivate')}
+        >
+          Reactivate
+        </Menu.Item>
+      ),
+      caps.canDeactivate && (
+        <Menu.Item
+          key="deactivate"
+          color="red"
+          leftSection={<IconUserOff size={14} />}
+          onClick={() =>
+            confirmAction({
+              title: 'Deactivate user?',
+              message: `${name} will be signed out and unable to sign in. Their history is kept and their seat is freed.`,
+              confirmLabel: 'Deactivate',
+              danger: true,
+              onConfirm: () => act(user, 'deactivate'),
+            })
+          }
+        >
+          Deactivate
+        </Menu.Item>
+      ),
+    ].filter(Boolean);
+    if (items.length === 0) return null;
+    return (
+      // The row opens the user on click; the menu must not.
+      <Menu position="bottom-end" withinPortal>
+        <Menu.Target>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            aria-label={`Actions for ${name}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <IconDotsVertical size={18} />
+          </ActionIcon>
+        </Menu.Target>
+        <Menu.Dropdown onClick={(event) => event.stopPropagation()}>
+          {items}
+        </Menu.Dropdown>
+      </Menu>
+    );
+  };
 
   const columns: Column<UserSummary>[] = [
     {
@@ -199,6 +318,13 @@ export default function UsersPage() {
       sortField: 'status',
       width: 120,
       render: (user) => <UserStatusBadge status={user.status} />,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      width: 90,
+      align: 'right',
+      render: actions,
     },
   ];
 
@@ -344,6 +470,21 @@ export default function UsersPage() {
           />
         )}
       </TableCard>
+
+      <Modal
+        opened={!!issued}
+        onClose={() => setIssued(null)}
+        title="New temporary PIN"
+        size="lg"
+      >
+        {issued && (
+          <CredentialsCard
+            credentials={issued.credentials}
+            personName={issued.name}
+            timeZone={tz}
+          />
+        )}
+      </Modal>
 
       <FilterPanel
         opened={panelOpen}
