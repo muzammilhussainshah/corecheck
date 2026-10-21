@@ -2,6 +2,7 @@
 
 import { Button, Card, Group, Stack, Title } from '@mantine/core';
 import { schemaResolver, useForm } from '@mantine/form';
+import dayjs from 'dayjs';
 import Link from 'next/link';
 import { useState } from 'react';
 import {
@@ -20,16 +21,16 @@ import { useCreateOrganisationMutation } from '../../../../lib/api';
 const DEFAULT_TIME_ZONE = 'Europe/London';
 
 /**
- * Today's date in the organisation's time zone, as YYYY-MM-DD. Account dates
- * are calendar days there (NFR-005), not in the browser's zone.
+ * Today's date in the organisation's time zone, as YYYY-MM-DD, optionally
+ * `monthsAhead` months on. Account dates are calendar days there (NFR-005),
+ * not in the browser's zone.
  */
-const dateIn = (timeZone: string, yearsAhead = 0) => {
-  const [year, month, day] = new Intl.DateTimeFormat('en-CA', { timeZone })
-    .format(new Date())
-    .split('-');
-  // 29 February has no anniversary in most years.
-  const safeDay = yearsAhead && month === '02' && day === '29' ? '28' : day;
-  return `${Number(year) + yearsAhead}-${month}-${safeDay}`;
+const dateIn = (timeZone: string, monthsAhead = 0) => {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone }).format(
+    new Date(),
+  );
+  // dayjs clamps to month end, e.g. 31 Jan + 1 month = 28/29 Feb.
+  return dayjs(today).add(monthsAhead, 'month').format('YYYY-MM-DD');
 };
 
 /** Provision a customer organisation and its first Admin (IAD-002, IAD-010). */
@@ -114,6 +115,7 @@ export default function NewOrganisationPage() {
         submitLabel="Create organisation"
         loading={isLoading}
         withFirstAdmin
+        minStartsOn={dateIn(form.values.timeZone)}
       />
     </>
   );

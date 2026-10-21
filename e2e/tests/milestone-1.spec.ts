@@ -87,6 +87,8 @@ test('Milestone 1: provision an organisation, sign in with a temporary PIN, admi
       .first()
       .innerText()
   ).trim();
+  // The PIN is masked until revealed.
+  await staff.getByRole('button', { name: 'Show PIN' }).click();
   const temporaryPin = (
     await rows
       .locator('tr')

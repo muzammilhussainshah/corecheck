@@ -15,6 +15,7 @@ import {
 import { DateInput } from '@mantine/dates';
 import type { UseFormReturnType } from '@mantine/form';
 import { IconCalendar } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import type { FormEvent } from 'react';
 
 export interface OrganisationValues {
@@ -77,12 +78,15 @@ export function OrganisationForm({
   submitLabel,
   loading,
   withFirstAdmin,
+  minStartsOn,
 }: {
   form: UseFormReturnType<OrganisationValues>;
   onSubmit: (event?: FormEvent<HTMLFormElement>) => void;
   submitLabel: string;
   loading: boolean;
   withFirstAdmin?: boolean;
+  /** Earliest selectable start date (YYYY-MM-DD); unset allows past dates. */
+  minStartsOn?: string;
 }) {
   return (
     <form onSubmit={onSubmit} noValidate>
@@ -160,11 +164,21 @@ export function OrganisationForm({
             />
             <DateInput
               label="Account start date"
+              minDate={minStartsOn}
               valueFormat="D MMM YYYY"
               leftSection={<IconCalendar size={16} />}
               required
               {...form.getInputProps('startsOn')}
-              onChange={(value) => form.setFieldValue('startsOn', value ?? '')}
+              onChange={(value) => {
+                form.setFieldValue('startsOn', value ?? '');
+                // Keep the expiry from ending up before the new start.
+                if (value && form.values.expiresOn < value) {
+                  form.setFieldValue(
+                    'expiresOn',
+                    dayjs(value).add(1, 'month').format('YYYY-MM-DD'),
+                  );
+                }
+              }}
             />
             <DateInput
               label="Account expiry date"

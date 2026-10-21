@@ -1,4 +1,8 @@
+'use client';
+
+import { useState } from 'react';
 import {
+  ActionIcon,
   Alert,
   Button,
   CopyButton,
@@ -11,6 +15,8 @@ import {
 import {
   IconCheck,
   IconCopy,
+  IconEye,
+  IconEyeOff,
   IconPrinter,
   IconShieldLock,
 } from '@tabler/icons-react';
@@ -55,6 +61,8 @@ export const CredentialsCard = ({
   personName: string;
   timeZone?: string;
 }) => {
+  // The PIN stays masked on screen until the viewer asks to see it.
+  const [pinShown, setPinShown] = useState(false);
   const expires = formatDateTime(credentials.expiresAt, timeZone);
   const rows: Array<[string, string]> = [
     ['Username', credentials.username],
@@ -88,8 +96,24 @@ export const CredentialsCard = ({
                       size="lg"
                       lts={label === 'Temporary PIN' ? 3 : undefined}
                     >
-                      {value}
+                      {label === 'Temporary PIN' && !pinShown
+                        ? '●'.repeat(value.length)
+                        : value}
                     </Text>
+                    {label === 'Temporary PIN' && (
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        onClick={() => setPinShown((shown) => !shown)}
+                        aria-label={pinShown ? 'Hide PIN' : 'Show PIN'}
+                      >
+                        {pinShown ? (
+                          <IconEyeOff size={16} />
+                        ) : (
+                          <IconEye size={16} />
+                        )}
+                      </ActionIcon>
+                    )}
                     <CopyButton value={value}>
                       {({ copied, copy }) => (
                         <Button
