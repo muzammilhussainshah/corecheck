@@ -92,7 +92,7 @@ export default function NewUserPage() {
             : 'CoreCheck creates the username from the name and issues a temporary PIN.'
         }
       />
-      <Paper withBorder shadow="sm" p="lg" maw={1040}>
+      <Paper withBorder shadow="sm" p="lg">
         {created ? (
           <Stack>
             <CredentialsCard
