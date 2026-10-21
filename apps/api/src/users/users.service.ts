@@ -268,6 +268,8 @@ export class UsersService {
       disciplineIds: [],
     });
 
+    await this.assertEmailFree(input.email);
+
     const temporary = await issueTemporaryPin(this.hasher, this.clock.now());
     let created: { id: string; username: string };
     try {
@@ -337,6 +339,7 @@ export class UsersService {
       throw this.administerRefusal(actor, target);
     }
 
+    if (details.email) await this.assertEmailFree(details.email, id);
     if (Object.keys(details).length > 0) {
       await this.db.update(UserEntity, { id }, details);
       const before = Object.fromEntries(
@@ -642,6 +645,23 @@ export class UsersService {
           scope[field].map((refId) => ({ orgId, userId, [column]: refId })),
         );
       }
+    }
+  }
+
+  /** Refuses an email another user in the organisation already has. */
+  private async assertEmailFree(
+    email: string | null | undefined,
+    excludingUserId?: string,
+  ): Promise<void> {
+    if (!email) return;
+    const taken = await this.db.query(
+      `select 1 from corecheck.users
+        where lower(email) = lower($1) and ($2::uuid is null or id <> $2)
+        limit 1`,
+      [email, excludingUserId ?? null],
+    );
+    if (taken.length > 0) {
+      throw fieldError('email', 'Another user already has this email.');
     }
   }
 
