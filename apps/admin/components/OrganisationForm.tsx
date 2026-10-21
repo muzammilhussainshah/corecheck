@@ -8,6 +8,7 @@ import {
   Select,
   SimpleGrid,
   Stack,
+  Text,
   Textarea,
   TextInput,
 } from '@mantine/core';
@@ -40,6 +41,35 @@ const TIME_ZONES: string[] = (() => {
   }
 })();
 
+/** Card heading, placed inside the Fieldset rather than on its border. */
+const SectionTitle = ({ children }: { children: string }) => (
+  <Text ff="var(--mantine-font-family-headings)" fw={600} c="dark" mb="sm">
+    {children}
+  </Text>
+);
+
+/** English country names from the browser's region data, sorted A–Z. */
+const COUNTRIES: string[] = (() => {
+  try {
+    const names = new Intl.DisplayNames(['en'], { type: 'region' });
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    // Region codes that are not countries.
+    const skip = new Set(['EU', 'EZ', 'QO', 'UN', 'XA', 'XB', 'ZZ']);
+    const found = new Set<string>();
+    for (const a of letters) {
+      for (const b of letters) {
+        const code = a + b;
+        const name = names.of(code);
+        // Unassigned codes echo back unchanged.
+        if (name && name !== code && !skip.has(code)) found.add(name);
+      }
+    }
+    return [...found].sort((x, y) => x.localeCompare(y));
+  } catch {
+    return ['United Kingdom'];
+  }
+})();
+
 /** The organisation fields of IAD-002, shared by create and edit. */
 export function OrganisationForm({
   form,
@@ -57,7 +87,8 @@ export function OrganisationForm({
   return (
     <form onSubmit={onSubmit} noValidate>
       <Stack>
-        <Fieldset legend="Organisation">
+        <Fieldset>
+          <SectionTitle>Organisation</SectionTitle>
           <Stack>
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <TextInput
@@ -79,8 +110,10 @@ export function OrganisationForm({
               {...form.getInputProps('address')}
             />
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
-              <TextInput
+              <Select
                 label="Country"
+                data={COUNTRIES}
+                searchable
                 required
                 {...form.getInputProps('country')}
               />
@@ -95,7 +128,8 @@ export function OrganisationForm({
             </SimpleGrid>
           </Stack>
         </Fieldset>
-        <Fieldset legend="Primary contact">
+        <Fieldset>
+          <SectionTitle>Primary contact</SectionTitle>
           <SimpleGrid cols={{ base: 1, sm: 3 }}>
             <TextInput
               label="Name"
@@ -115,7 +149,8 @@ export function OrganisationForm({
             />
           </SimpleGrid>
         </Fieldset>
-        <Fieldset legend="Account">
+        <Fieldset>
+          <SectionTitle>Account</SectionTitle>
           <SimpleGrid cols={{ base: 1, sm: 3 }}>
             <NumberInput
               label="User seat limit"
@@ -143,7 +178,8 @@ export function OrganisationForm({
           </SimpleGrid>
         </Fieldset>
         {withFirstAdmin && (
-          <Fieldset legend="First Organisation Admin">
+          <Fieldset>
+            <SectionTitle>First Organisation Admin</SectionTitle>
             <SimpleGrid cols={{ base: 1, sm: 3 }}>
               <TextInput
                 label="First name"
