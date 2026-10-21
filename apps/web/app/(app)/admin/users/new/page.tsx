@@ -15,6 +15,7 @@ import {
 } from '@mantine/core';
 import { schemaResolver, useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
@@ -50,6 +51,17 @@ const EMPTY: NewUserValues = {
   teamIds: [],
   disciplineIds: [],
 };
+
+/** Hint shown under a scope field when nothing of that kind exists yet. */
+const emptyHint = (noun: string, href: string) => (
+  <>
+    No {noun} yet.{' '}
+    <Link href={href} style={{ color: 'inherit', fontWeight: 600 }}>
+      Create one first
+    </Link>
+    , then come back to assign it.
+  </>
+);
 
 /**
  * Adds a user on its own page, as CoreStock does. CoreCheck generates the
@@ -183,10 +195,13 @@ export default function NewUserPage() {
                       label="Sites"
                       placeholder="Select sites"
                       description={
-                        me?.scope.orgWide
-                          ? undefined
-                          : 'You can assign your own sites.'
+                        !scope.loading && scope.sites.length === 0
+                          ? emptyHint('sites', '/admin/sites')
+                          : me?.scope.orgWide
+                            ? undefined
+                            : 'You can assign your own sites.'
                       }
+                      nothingFoundMessage="No sites found"
                       data={scope.sites}
                       searchable
                       required={!me?.scope.orgWide}
@@ -195,6 +210,12 @@ export default function NewUserPage() {
                     <MultiSelect
                       label="Teams"
                       placeholder="Select teams"
+                      description={
+                        !scope.loading && scope.teams.length === 0
+                          ? emptyHint('teams', '/admin/teams')
+                          : undefined
+                      }
+                      nothingFoundMessage="No teams found"
                       data={scope.teams}
                       searchable
                       {...form.getInputProps('teamIds')}
@@ -202,6 +223,12 @@ export default function NewUserPage() {
                     <MultiSelect
                       label="Disciplines"
                       placeholder="Select disciplines"
+                      description={
+                        !scope.loading && scope.disciplines.length === 0
+                          ? emptyHint('disciplines', '/admin/disciplines')
+                          : undefined
+                      }
+                      nothingFoundMessage="No disciplines found"
                       data={scope.disciplines}
                       searchable
                       {...form.getInputProps('disciplineIds')}
