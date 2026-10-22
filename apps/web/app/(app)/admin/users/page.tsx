@@ -172,7 +172,9 @@ export default function UsersPage() {
   };
 
   const actions = (user: UserSummary) => {
-    const caps = user.capabilities;
+    // An API older than this page sends no capabilities; show no actions
+    // rather than crash the list.
+    const caps: Partial<UserSummary['capabilities']> = user.capabilities ?? {};
     const name = `${user.firstName} ${user.lastName}`;
     const items = [
       caps.canEdit && (
