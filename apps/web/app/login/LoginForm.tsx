@@ -4,7 +4,7 @@ import { Alert, Button, Stack, Text, TextInput } from '@mantine/core';
 import { schemaResolver, useForm } from '@mantine/form';
 import { IconInfoCircle, IconLock } from '@tabler/icons-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   type ApiError,
   customerLoginSchema,
@@ -28,10 +28,6 @@ const REASONS: Record<string, string> = {
   SIGNED_OUT: 'You have signed out.',
 };
 
-/** Only same-site paths are followed after sign-in (no open redirects). */
-const safeNext = (next: string | null): string =>
-  next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
-
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
@@ -39,6 +35,21 @@ export function LoginForm() {
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [pinFocus, setPinFocus] = useState(0);
   const reason = params.get('reason');
+  const [waking, setWaking] = useState(false);
+
+  // Wake the API while the user types; if it is slow to answer, say so.
+  useEffect(() => {
+    let done = false;
+    const slow = setTimeout(() => !done && setWaking(true), 3000);
+    fetch('/api/health')
+      .catch(() => undefined)
+      .finally(() => {
+        done = true;
+        clearTimeout(slow);
+        setWaking(false);
+      });
+    return () => clearTimeout(slow);
+  }, []);
 
   const form = useForm({
     initialValues: { username: '', pin: '' },
@@ -54,11 +65,8 @@ export function LoginForm() {
       setPinFocus((n) => n + 1);
       return;
     }
-    router.replace(
-      result.data.me.mustChangePin
-        ? '/change-pin'
-        : safeNext(params.get('next')),
-    );
+    // Every sign-in starts on the Dashboard.
+    router.replace(result.data.me.mustChangePin ? '/change-pin' : '/');
   });
 
   const remaining = failure?.details?.remainingAttempts as number | undefined;
@@ -69,6 +77,12 @@ export function LoginForm() {
       description="Enter your username and PIN to sign in to CoreCheck."
     >
       <Stack gap="lg">
+        {waking && !failure && (
+          <Alert color="yellow" icon={<IconInfoCircle size={18} />}>
+            Connecting to CoreCheck. The server is starting up, which can take
+            up to a minute.
+          </Alert>
+        )}
         {reason && REASONS[reason] && !failure && (
           <Alert color="blue" icon={<IconInfoCircle size={18} />}>
             {REASONS[reason]}

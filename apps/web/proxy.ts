@@ -9,7 +9,7 @@ const SESSION_COOKIE = 'cc_session';
  * API itself, which also handles expired or revoked sessions.
  */
 export function proxy(request: NextRequest) {
-  const { pathname, search } = request.nextUrl;
+  const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
@@ -18,8 +18,7 @@ export function proxy(request: NextRequest) {
 
   const login = request.nextUrl.clone();
   login.pathname = '/login';
-  login.search =
-    pathname === '/' ? '' : `?next=${encodeURIComponent(pathname + search)}`;
+  login.search = '';
   return NextResponse.redirect(login);
 }
 

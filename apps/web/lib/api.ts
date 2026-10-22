@@ -56,8 +56,7 @@ const handleSessionErrors = (error: ApiError): void => {
     SESSION_ENDING_CODES.includes(error.code) &&
     !PUBLIC_PATHS.includes(path)
   ) {
-    const next = encodeURIComponent(path + window.location.search);
-    window.location.assign(`/login?reason=${error.code}&next=${next}`);
+    window.location.assign(`/login?reason=${error.code}`);
   } else if (
     error.code === ERROR_CODES.PIN_CHANGE_REQUIRED &&
     path !== '/change-pin'

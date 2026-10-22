@@ -20,11 +20,23 @@ const NETWORK_ERROR: ApiError = {
   message: 'Could not reach CoreCheck. Check your connection and try again.',
 };
 
+/** The API is asleep or restarting: the proxy times out or has no upstream. */
+const STARTING_UP: ApiError = {
+  statusCode: 503,
+  code: ERROR_CODES.SERVICE_UNAVAILABLE,
+  message:
+    'CoreCheck is starting up. This can take up to a minute — please try again shortly.',
+};
+
 /** Any thrown value as the API's error shape. */
 export const toApiError = (error: unknown): ApiError => {
   const axiosError = error as AxiosError<ApiError>;
   const body = axiosError?.response?.data;
   if (body && typeof body === 'object' && 'code' in body) return body;
+  if (axiosError?.code === 'ECONNABORTED') return STARTING_UP;
+  if ([502, 503, 504].includes(axiosError?.response?.status ?? 0)) {
+    return STARTING_UP;
+  }
   if (axiosError?.response) {
     return {
       statusCode: axiosError.response.status,
