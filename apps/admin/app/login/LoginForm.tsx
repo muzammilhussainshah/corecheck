@@ -4,7 +4,7 @@ import { Alert, Button, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { schemaResolver, useForm } from '@mantine/form';
 import { IconInfoCircle, IconLock } from '@tabler/icons-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   type ApiError,
   ERROR_CODES,
@@ -24,6 +24,22 @@ export function LoginForm() {
   const [login, { isLoading }] = useLoginMutation();
   const [failure, setFailure] = useState<ApiError | null>(null);
   const reason = useSearchParams().get('reason');
+  const [waking, setWaking] = useState(false);
+
+  // Wake the API while the user types; if it is slow to answer, say so.
+  useEffect(() => {
+    let done = false;
+    const slow = setTimeout(() => !done && setWaking(true), 3000);
+    fetch('/api/health')
+      .catch(() => undefined)
+      .finally(() => {
+        done = true;
+        clearTimeout(slow);
+        setWaking(false);
+      });
+    return () => clearTimeout(slow);
+  }, []);
+
   const form = useForm({
     initialValues: { email: '', password: '' },
     validate: schemaResolver(staffLoginSchema, { sync: true }),
@@ -50,6 +66,12 @@ export function LoginForm() {
       title="Sign in"
       description="Internal access for CoreCheck staff only."
     >
+      {waking && !failure && (
+        <Alert color="yellow" icon={<IconInfoCircle size={18} />}>
+          Connecting to CoreCheck. The server is starting up, which can take up
+          to a minute.
+        </Alert>
+      )}
       {reason && REASONS[reason] && !failure && (
         <Alert color="blue" icon={<IconInfoCircle size={18} />}>
           {REASONS[reason]}

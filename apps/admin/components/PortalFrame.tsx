@@ -43,6 +43,9 @@ const NAV: Array<NavEntry & { ownerOnly: boolean }> = [
   },
 ];
 
+const SERVER_WAKING =
+  'Connecting to CoreCheck. The server is starting up, which can take up to a minute.';
+
 /** The internal portal's frame: the same CoreStock-style shell as the customer app. */
 export function PortalFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -58,7 +61,13 @@ export function PortalFrame({ children }: { children: ReactNode }) {
     else if (me.mustChangePassword) router.replace('/change-password');
   }, [me, router]);
 
-  if (!me || pending) return <PageLoader label="CoreCheck Admin" />;
+  if (!me || pending)
+    return (
+      <PageLoader
+        label="CoreCheck Admin"
+        slowHint={me ? undefined : SERVER_WAKING}
+      />
+    );
 
   const signOut = async () => {
     await logout();
