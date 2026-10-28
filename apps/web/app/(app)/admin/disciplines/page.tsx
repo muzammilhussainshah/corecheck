@@ -23,7 +23,7 @@ export default function DisciplinesPage() {
   return (
     <StructureManager<Discipline>
       title="Disciplines"
-      description="Technical specialisms such as Mechanical or Electrical. Add your own without a new role (ORG-005)."
+      description="Technical specialisms such as Mechanical or Electrical. Add your own without a new role."
       noun="Discipline"
       items={data}
       loading={isFetching}

@@ -79,7 +79,20 @@ export function StructureManager<T extends StructureItem>(props: Props<T>) {
     ? props.items?.filter((item) => item.name.toLowerCase().includes(term))
     : props.items;
   const blank = Object.fromEntries(fields.map((field) => [field.key, '']));
-  const form = useForm<Record<string, string>>({ initialValues: blank });
+  const form = useForm<Record<string, string>>({
+    initialValues: blank,
+    validate: Object.fromEntries(
+      fields
+        .filter((field) => field.required)
+        .map((field) => [
+          field.key,
+          (value: string) =>
+            value?.trim()
+              ? null
+              : `${noun} ${field.label.toLowerCase()} is required.`,
+        ]),
+    ),
+  });
 
   const open = (item: T | 'new') => {
     form.setValues(

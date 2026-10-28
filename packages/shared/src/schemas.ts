@@ -40,6 +40,13 @@ const optionalEmail = z
 
 const id = z.uuid('Invalid identifier.');
 
+/** An id the user picks in a form; blank gets a "<label> is required." message. */
+const requiredId = (label: string) =>
+  z
+    .string({ error: `${label} is required.` })
+    .min(1, `${label} is required.`)
+    .pipe(id);
+
 /** A list of ids with duplicates removed. */
 const idList = z
   .array(id)
@@ -110,7 +117,7 @@ export const createUserSchema = z.object({
   firstName: requiredText('First name', 60),
   lastName: requiredText('Last name', 60),
   email: optionalEmail,
-  roleId: id,
+  roleId: requiredId('Role'),
   siteIds: idList.default([]),
   teamIds: idList.default([]),
   disciplineIds: idList.default([]),

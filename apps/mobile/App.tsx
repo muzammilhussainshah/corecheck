@@ -124,6 +124,9 @@ function App() {
             const saved = await db.getSetting('me');
             if (saved) setMe(JSON.parse(saved) as MeResponse);
             setStatus((current) => ({ ...current, online: false }));
+          } else if (error instanceof api.RequestFailed && error.sessionEnded) {
+            // Tell them why, e.g. a sign-in on another device ended it.
+            await endSession(error.error.message);
           } else {
             await api.clearToken();
           }
@@ -131,7 +134,7 @@ function App() {
       }
       setBooting(false);
     })();
-  }, [refresh, signIn]);
+  }, [endSession, refresh, signIn]);
 
   // Sync when signed in, and again whenever the connection returns.
   useEffect(() => {
