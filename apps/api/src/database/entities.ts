@@ -1,5 +1,7 @@
 import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import type {
+  AnswerValue,
+  ApprovalMode,
   ClientType,
   CustomFieldType,
   CustomValue,
@@ -8,12 +10,15 @@ import type {
   PlantCompanyKind,
   PlantOwnership,
   PlantStatus,
+  ReceptionStatus,
   RestrictionReason,
   PocCheckStatus,
   PocQuestionKey,
   StaffRole,
   StaffStatus,
   StandardRoleKey,
+  TemplatePurpose,
+  TemplateQuestion,
   UserStatus,
 } from '@corecheck/shared';
 
@@ -478,6 +483,113 @@ export class PlantDocumentVersionEntity {
   @Column('text', { nullable: true }) rejectionReason!: string | null;
 }
 
+// ----------------------------------------- templates and reception (M2)
+
+@Entity({ schema: SCHEMA, name: 'check_templates' })
+export class CheckTemplateEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') purpose!: TemplatePurpose;
+  @Column('text') name!: string;
+  @Column('text', { nullable: true }) description!: string | null;
+  @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
+  @Column('uuid') createdBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'check_template_versions' })
+export class CheckTemplateVersionEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') templateId!: string;
+  @Column('integer') version!: number;
+  @Column('text') state!: 'draft' | 'published';
+  @Column('text') approvalMode!: ApprovalMode;
+  @Column('jsonb') questions!: TemplateQuestion[];
+  @Column('timestamptz', { nullable: true }) publishedAt!: Date | null;
+  @Column('uuid', { nullable: true }) publishedBy!: string | null;
+  @Column('uuid') createdBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'reception_checks' })
+export class ReceptionCheckEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') plantId!: string;
+  @Column('uuid') templateVersionId!: string;
+  @Column('text') status!: ReceptionStatus;
+  @Column('uuid') assignedBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  assignedAt!: Date;
+  @Column('uuid', { nullable: true }) submittedBy!: string | null;
+  @Column('timestamptz', { nullable: true }) submittedAt!: Date | null;
+  @Column('uuid', { nullable: true }) reviewedBy!: string | null;
+  @Column('timestamptz', { nullable: true }) reviewedAt!: Date | null;
+  @Column('text', { nullable: true }) reviewComment!: string | null;
+  @Column('jsonb') outcomeReasons!: string[];
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'reception_answers' })
+export class ReceptionAnswerEntity {
+  @PrimaryColumn('uuid') checkId!: string;
+  @PrimaryColumn('text') questionId!: string;
+  @Column('uuid') orgId!: string;
+  @Column('jsonb', { nullable: true }) value!: AnswerValue;
+  @Column('text', { nullable: true }) comment!: string | null;
+  @Column('uuid') answeredBy!: string;
+  @Column('timestamptz') answeredAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'reception_evidence' })
+export class ReceptionEvidenceEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') checkId!: string;
+  @Column('text') questionId!: string;
+  @Column('text') storagePath!: string;
+  @Column('text') fileName!: string;
+  @Column('text') contentType!: string;
+  @Column('integer') sizeBytes!: number;
+  @Column('uuid') uploadedBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  uploadedAt!: Date;
+  @Column('timestamptz', { nullable: true }) removedAt!: Date | null;
+}
+
+/** An answer as it stood when submitted, with its photo ids. */
+export interface SubmittedAnswer {
+  questionId: string;
+  value: AnswerValue;
+  comment: string | null;
+  answeredBy: string;
+  answeredAt: string;
+  photos: string[];
+}
+
+@Entity({ schema: SCHEMA, name: 'reception_submissions' })
+export class ReceptionSubmissionEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') checkId!: string;
+  @Column('uuid') submittedBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  submittedAt!: Date;
+  @Column('jsonb') answers!: SubmittedAnswer[];
+  @Column('text') outcome!: 'awaiting_approval' | 'approved' | 'restricted';
+  @Column('jsonb') outcomeReasons!: string[];
+}
+
 export const ENTITIES = [
   OrganisationEntity,
   RoleEntity,
@@ -509,4 +621,10 @@ export const ENTITIES = [
   PlantDisciplineEntity,
   PlantDocumentEntity,
   PlantDocumentVersionEntity,
+  CheckTemplateEntity,
+  CheckTemplateVersionEntity,
+  ReceptionCheckEntity,
+  ReceptionAnswerEntity,
+  ReceptionEvidenceEntity,
+  ReceptionSubmissionEntity,
 ];

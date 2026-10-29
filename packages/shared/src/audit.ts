@@ -90,6 +90,19 @@ export const AUDIT_ACTIONS = {
   'document.rejected': 'Document rejected',
   'document.archived': 'Document archived',
   'document.restored': 'Document restored',
+  'plant.approved': 'Plant approved',
+
+  // Templates and reception (TMP-001..005, FRD 8)
+  'template.created': 'Template created',
+  'template.updated': 'Template draft saved',
+  'template.published': 'Template version published',
+  'template.archived': 'Template archived',
+  'template.restored': 'Template restored',
+  'reception.assigned': 'Reception check assigned',
+  'reception.submitted': 'Reception submitted',
+  'reception.approved': 'Reception approved',
+  'reception.returned': 'Reception returned for correction',
+  'reception.cancelled': 'Reception check cancelled',
 
   // Internal provisioning (IAD-004)
   'organisation.created': 'Organisation created',
@@ -130,6 +143,8 @@ export const AUDIT_CATEGORIES = [
   { key: 'document_type', label: 'Document types' },
   { key: 'plant', label: 'Plant' },
   { key: 'document', label: 'Documents' },
+  { key: 'template', label: 'Templates' },
+  { key: 'reception', label: 'Reception' },
   { key: 'seat_limit', label: 'Seats' },
   { key: 'organisation', label: 'Organisations' },
   { key: 'staff', label: 'CoreCheck staff' },

@@ -14,6 +14,7 @@ export * from './errors.js';
 export * from './permissions.js';
 export * from './pin.js';
 export * from './poc.js';
+export * from './reception.js';
 export * from './roles.js';
 export * from './schemas.js';
 export * from './statuses.js';

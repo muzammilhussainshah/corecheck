@@ -3,7 +3,7 @@
 Har kaam mukammal hone par yahan `[x]` lagta hai. `🔄` = abhi chal raha hai.
 Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
-**Abhi:** Phase 4 — Reception (template + reception check + approval) 🔄
+**Abhi:** Phase 4 — Template builder aur Reception ki web screens 🔄
 
 ---
 
@@ -58,19 +58,19 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
 ## Phase 4 — Reception
 
-- [ ] Reception template: Draft → Published (immutable version), naya version on edit
-- [ ] Sawal ki types: yes/no, pass/fail, text, number, photo/file, meter reading
-- [ ] Sawal settings: mandatory, comment zaroori, photo zaroori, fail par Offline
-- [ ] Template setting: automatic ya manual approval
+- [x] Reception template: Draft → Published (immutable version), naya version on edit
+- [x] Sawal ki types: yes/no, pass/fail, text, number, photo/file, meter reading
+- [x] Sawal settings: mandatory, comment zaroori, photo zaroori, fail par Offline
+- [x] Template setting: automatic ya manual approval
 - [ ] Web: Template builder (Manage)
-- [ ] Assign: Supervisor/Manager/Admin plant par template assign kare
-- [ ] Reception bharna: draft save, photos, meter reading, submit
-- [ ] Auto approval → Approved/Online (sab rules pass)
-- [ ] Manual approval → Awaiting Approval → approve / return with comment
-- [ ] Offline trigger fail ya document missing → Restricted/Offline
-- [ ] Template version + har jawab + kis ne diya + evidence mehfooz
+- [x] Assign: Supervisor/Manager/Admin plant par template assign kare
+- [x] Reception bharna: draft save, photos, meter reading, submit
+- [x] Auto approval → Approved/Online (sab rules pass)
+- [x] Manual approval → Awaiting Approval → approve / return with comment
+- [x] Offline trigger fail ya document missing → Restricted/Offline
+- [x] Template version + har jawab + kis ne diya + evidence mehfooz
 - [ ] Web: Reception screen (plant profile se)
-- [ ] Tests: reception journey (auto, manual, return, offline trigger, missing document)
+- [x] Tests: reception journey (auto, manual, return, offline trigger, missing document)
 
 ## Phase 5 — Meter readings
 
@@ -130,3 +130,4 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - Phase 3 web mukammal: plant ka Documents tab (mandatory documents ki halat, upload, view, download, verify, reject, naya version, archive, purane versions), "Documents" main page (Expired / Approaching / Awaiting / Rejected cards + filters), register mein Documents column + filter, Return to service par documents ki rok aur override form (reason + review date). Browser mein poora flow check kiya: reject karte hi approved plant khud Restricted hua.
 - Deploy ke liye note: production/staging mein `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` set karne honge (docs/environments.md).
 - **Phase 3 mukammal ✅**
+- Phase 4 backend mukammal: templates (draft/publish, published version database level par freeze, naya version), reception assign/answers/photos/submit/approve/return/cancel, har submission ki copy, version pinning. 22 naye tests (templates + reception).

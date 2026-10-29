@@ -2,10 +2,16 @@ import { z } from 'zod';
 import { isPermissionCode } from './permissions.js';
 import { newPinProblem, PIN_PATTERN } from './pin.js';
 import { POC_QUESTION_KEYS } from './poc.js';
+import { questionCanFail, type TemplateQuestion } from './reception.js';
 import {
+  APPROVAL_MODES,
   CLIENT_TYPES,
   CUSTOM_FIELD_TYPES,
+  DEFECT_SEVERITIES,
   DOCUMENT_STATES,
+  EVIDENCE_RULES,
+  QUESTION_TYPES,
+  TEMPLATE_PURPOSES,
   PLANT_COMPANY_KINDS,
   PLANT_COMPLIANCE_STATES,
   PLANT_OWNERSHIPS,
@@ -574,6 +580,126 @@ export const listDocumentsQuerySchema = paginationQuerySchema.extend({
   order: sortOrder,
 });
 export type ListDocumentsQuery = z.input<typeof listDocumentsQuerySchema>;
+
+// ------------------------------------------------- templates and reception
+
+const nullableNumber = z.number().finite().nullable().default(null);
+
+/** One question; rules that only make sense for some types are checked. */
+export const templateQuestionSchema = z
+  .object({
+    id: z.string().trim().min(1).max(40),
+    text: requiredText('Question', 300),
+    type: z.enum(QUESTION_TYPES, { error: 'Choose a question type.' }),
+    mandatory: z.boolean().default(true),
+    failAnswer: z.enum(['yes', 'no']).nullable().default(null),
+    min: nullableNumber,
+    max: nullableNumber,
+    meterTypeId: z.uuid().nullable().default(null),
+    requireComment: z.enum(EVIDENCE_RULES).default('never'),
+    requirePhoto: z.enum(EVIDENCE_RULES).default('never'),
+    offlineOnFail: z.boolean().default(false),
+    defectSeverity: z.enum(DEFECT_SEVERITIES).nullable().default(null),
+  })
+  .superRefine((question, ctx) => {
+    const issue = (path: string, message: string) =>
+      ctx.addIssue({ code: 'custom', path: [path], message });
+    if (question.type === 'meter' && !question.meterTypeId)
+      issue('meterTypeId', 'Choose the meter this question reads.');
+    if (
+      question.min !== null &&
+      question.max !== null &&
+      question.min > question.max
+    )
+      issue('max', 'The highest value must not be below the lowest.');
+    const canFail = questionCanFail(question as TemplateQuestion);
+    if (!canFail) {
+      if (question.offlineOnFail)
+        issue(
+          'offlineOnFail',
+          'This question cannot fail, so it cannot take plant Offline.',
+        );
+      if (question.defectSeverity)
+        issue(
+          'defectSeverity',
+          'This question cannot fail, so it cannot raise a Defect.',
+        );
+      for (const key of ['requireComment', 'requirePhoto'] as const)
+        if (question[key] === 'on_fail')
+          issue(key, 'This question cannot fail; choose optional or always.');
+    }
+  })
+  .transform((question) => ({
+    ...question,
+    // Settings of other types are dropped so a version holds only what applies.
+    failAnswer: question.type === 'yes_no' ? question.failAnswer : null,
+    min: question.type === 'number' ? question.min : null,
+    max: question.type === 'number' ? question.max : null,
+    meterTypeId: question.type === 'meter' ? question.meterTypeId : null,
+  }));
+
+export const createTemplateSchema = z.object({
+  name: requiredText('Template name', 120),
+  description: optionalText('Description', 500),
+  purpose: z.enum(TEMPLATE_PURPOSES).default('reception'),
+  approvalMode: z.enum(APPROVAL_MODES).default('manual'),
+});
+export type CreateTemplateInput = z.input<typeof createTemplateSchema>;
+
+/** Saves the draft version; a published template gets a new draft. */
+export const saveTemplateDraftSchema = z.object({
+  name: requiredText('Template name', 120).optional(),
+  description: optionalText('Description', 500),
+  approvalMode: z.enum(APPROVAL_MODES).optional(),
+  questions: z
+    .array(templateQuestionSchema)
+    .max(100, 'Use 100 questions or fewer.')
+    .refine(
+      (questions) =>
+        new Set(questions.map((question) => question.id)).size ===
+        questions.length,
+      { message: 'Each question needs its own id.' },
+    )
+    .optional(),
+});
+export type SaveTemplateDraftInput = z.input<typeof saveTemplateDraftSchema>;
+
+export const listTemplatesQuerySchema = z.object({
+  purpose: z.enum(TEMPLATE_PURPOSES).optional(),
+  includeArchived: booleanQuery,
+});
+
+export const assignReceptionSchema = z.object({
+  templateId: requiredId('Reception template'),
+});
+export type AssignReceptionInput = z.input<typeof assignReceptionSchema>;
+
+const answerValue = z.union([
+  z.string().trim().max(2000, 'Use 2000 characters or fewer.'),
+  z.number().finite(),
+  z.boolean(),
+  z.null(),
+]);
+
+export const saveReceptionAnswersSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string().min(1).max(40),
+        value: answerValue,
+        comment: optionalText('Comment', 1000),
+      }),
+    )
+    .max(200),
+});
+export type SaveReceptionAnswersInput = z.input<
+  typeof saveReceptionAnswersSchema
+>;
+
+export const returnReceptionSchema = z.object({
+  comment: requiredText('Comment', 1000),
+});
+export type ReturnReceptionInput = z.input<typeof returnReceptionSchema>;
 
 // ------------------------------------------------------------------ audit
 

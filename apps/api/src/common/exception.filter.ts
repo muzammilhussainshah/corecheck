@@ -69,6 +69,14 @@ const UNIQUE_MESSAGES: Record<string, { field: string; message: string }> = {
     field: 'name',
     message: 'A document type with this name already exists.',
   },
+  check_templates_org_name_key: {
+    field: 'name',
+    message: 'A template with this name already exists.',
+  },
+  reception_checks_one_active: {
+    field: 'templateId',
+    message: 'This plant already has a reception check in progress.',
+  },
 };
 
 const STATUS_CODES: Partial<Record<number, ErrorCode>> = {
@@ -214,6 +222,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
           code: ERROR_CODES.SEAT_LIMIT_REACHED,
           message:
             'All licensed seats are in use. Contact CoreCheck to add seats, or deactivate a user first.',
+        };
+      case 'CC003':
+        // corecheck.freeze_published_template(): the API only edits drafts,
+        // so this means a concurrent publish won the race.
+        return {
+          statusCode: HttpStatus.CONFLICT,
+          code: ERROR_CODES.CONFLICT,
+          message:
+            'This template version has just been published and can no longer change. Reload to edit a new draft.',
         };
       case '42501':
         // Row-level security or a missing grant refused the statement. The API

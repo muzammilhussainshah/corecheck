@@ -1,8 +1,10 @@
 import type { ErrorCode } from './errors.js';
 import type { PermissionCode } from './permissions.js';
 import type { PocCheckStatus, PocQuestionKey } from './poc.js';
+import type { AnswerValue, TemplateQuestion } from './reception.js';
 import type { StandardRoleKey } from './roles.js';
 import type {
+  ApprovalMode,
   ClientType,
   CustomFieldType,
   DocumentState,
@@ -12,9 +14,11 @@ import type {
   PlantCompanyKind,
   PlantOwnership,
   PlantStatus,
+  ReceptionStatus,
   RestrictionReason,
   StaffRole,
   StaffStatus,
+  TemplatePurpose,
   UserStatus,
 } from './statuses.js';
 
@@ -530,4 +534,115 @@ export type PocMutationResult =
 
 export interface PocPushResponse {
   results: PocMutationResult[];
+}
+
+// ------------------------------------------------- templates and reception
+
+export interface TemplateVersionDetail {
+  id: string;
+  version: number;
+  state: 'draft' | 'published';
+  approvalMode: ApprovalMode;
+  questions: TemplateQuestion[];
+  publishedAt: string | null;
+  publishedBy: string | null;
+}
+
+export interface CheckTemplateSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  purpose: TemplatePurpose;
+  /** The version new checks use; null until first published. */
+  publishedVersion: number | null;
+  hasDraft: boolean;
+  questionCount: number;
+  archivedAt: string | null;
+  updatedAt: string;
+}
+
+export interface CheckTemplateDetail extends CheckTemplateSummary {
+  draft: TemplateVersionDetail | null;
+  published: TemplateVersionDetail | null;
+  versions: Array<{
+    version: number;
+    state: 'draft' | 'published';
+    publishedAt: string | null;
+    publishedBy: string | null;
+  }>;
+}
+
+export interface ReceptionAnswer {
+  questionId: string;
+  value: AnswerValue;
+  comment: string | null;
+  answeredBy: string;
+  answeredAt: string;
+}
+
+export interface ReceptionEvidence {
+  id: string;
+  questionId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
+/** A submission as it was sent, kept when the check is returned (REC-AC-04). */
+export interface ReceptionSubmission {
+  id: string;
+  submittedBy: string;
+  submittedAt: string;
+  outcome: 'awaiting_approval' | 'approved' | 'restricted';
+  outcomeReasons: string[];
+  answers: ReceptionAnswer[];
+}
+
+export interface ReceptionCheck {
+  id: string;
+  plantId: string;
+  status: ReceptionStatus;
+  template: {
+    id: string;
+    name: string;
+    version: number;
+    approvalMode: ApprovalMode;
+  };
+  /** The questions of the version this check started from (REC-008). */
+  questions: TemplateQuestion[];
+  answers: ReceptionAnswer[];
+  evidence: ReceptionEvidence[];
+  submissions: ReceptionSubmission[];
+  assignedBy: string;
+  assignedAt: string;
+  submittedBy: string | null;
+  submittedAt: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewComment: string | null;
+  outcomeReasons: string[];
+  capabilities: {
+    answer: boolean;
+    submit: boolean;
+    approve: boolean;
+    returnForCorrection: boolean;
+    cancel: boolean;
+  };
+}
+
+export interface PlantReception {
+  /** The reception in progress, or the latest finished one. */
+  current: ReceptionCheck | null;
+  history: Array<{
+    id: string;
+    status: ReceptionStatus;
+    templateName: string;
+    version: number;
+    assignedAt: string;
+    submittedAt: string | null;
+    reviewedAt: string | null;
+  }>;
+  capabilities: { assign: boolean };
 }

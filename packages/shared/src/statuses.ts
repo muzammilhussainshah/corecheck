@@ -182,3 +182,75 @@ export const PLANT_COMPLIANCE_LABELS: Record<PlantComplianceState, string> = {
 
 /** Largest accepted document file, in bytes (NFR-003 upload size). */
 export const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
+
+// ------------------------------------------------- templates and reception
+
+/** What a check template is for (TMP-009). Milestone 3 adds the others. */
+export const TEMPLATE_PURPOSES = ['reception'] as const;
+export type TemplatePurpose = (typeof TEMPLATE_PURPOSES)[number];
+
+/** Whether a passed reception goes straight Online (REC-004). */
+export const APPROVAL_MODES = ['automatic', 'manual'] as const;
+export type ApprovalMode = (typeof APPROVAL_MODES)[number];
+
+export const APPROVAL_MODE_LABELS: Record<ApprovalMode, string> = {
+  automatic: 'Automatic approval when every rule passes',
+  manual: 'Manual approval by a Supervisor, Manager or Admin',
+};
+
+export const QUESTION_TYPES = [
+  'pass_fail',
+  'yes_no',
+  'text',
+  'number',
+  'photo',
+  'meter',
+] as const;
+export type QuestionType = (typeof QUESTION_TYPES)[number];
+
+export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
+  pass_fail: 'Pass / fail',
+  yes_no: 'Yes / no',
+  text: 'Text',
+  number: 'Number',
+  photo: 'Photo',
+  meter: 'Meter reading',
+};
+
+/** When a comment or photo must go with an answer (TMP-011). */
+export const EVIDENCE_RULES = ['never', 'on_fail', 'always'] as const;
+export type EvidenceRule = (typeof EVIDENCE_RULES)[number];
+
+export const EVIDENCE_RULE_LABELS: Record<EvidenceRule, string> = {
+  never: 'Optional',
+  on_fail: 'Required on a fail',
+  always: 'Always required',
+};
+
+export const DEFECT_SEVERITIES = ['minor', 'major', 'critical'] as const;
+export type DefectSeverity = (typeof DEFECT_SEVERITIES)[number];
+
+export const DEFECT_SEVERITY_LABELS: Record<DefectSeverity, string> = {
+  minor: 'Minor',
+  major: 'Major',
+  critical: 'Critical',
+};
+
+export const RECEPTION_STATUSES = [
+  'open',
+  'returned',
+  'submitted',
+  'approved',
+  'restricted',
+  'cancelled',
+] as const;
+export type ReceptionStatus = (typeof RECEPTION_STATUSES)[number];
+
+export const RECEPTION_STATUS_LABELS: Record<ReceptionStatus, string> = {
+  open: 'In progress',
+  returned: 'Returned for correction',
+  submitted: 'Awaiting approval',
+  approved: 'Approved',
+  restricted: 'Restricted',
+  cancelled: 'Cancelled',
+};
