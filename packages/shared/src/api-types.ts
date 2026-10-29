@@ -280,6 +280,8 @@ export interface PlantDetail extends PlantSummary {
   statusChangedBy: string | null;
   /** Last approval; never-approved plant returns to Pending Reception. */
   approvedAt: string | null;
+  /** An override of missing documents still within its review date. */
+  complianceOverride: { until: string; note: string } | null;
   createdAt: string;
   createdBy: string;
   /** What the signed-in user may do with this plant. */

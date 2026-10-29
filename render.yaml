@@ -33,3 +33,10 @@ services:
       # The web app address plant QR codes open, e.g. https://corecheck-web.vercel.app
       - key: WEB_APP_URL
         sync: false
+      - key: STORAGE_DRIVER
+        value: supabase
+      # Supabase > Project Settings > API: Project URL and service_role key
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

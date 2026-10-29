@@ -945,6 +945,9 @@ export class PlantsService {
       const user = people.find((person) => person.id === userId);
       return user ? fullName(user) : null;
     };
+    const overrideActive =
+      !!plant.complianceOverrideUntil &&
+      plant.complianceOverrideUntil >= (await this.compliance.today());
     return {
       ...toSummary(row!),
       disciplines,
@@ -953,6 +956,12 @@ export class PlantsService {
       statusChangedAt: plant.statusChangedAt.toISOString(),
       statusChangedBy: nameOf(plant.statusChangedBy),
       approvedAt: plant.approvedAt?.toISOString() ?? null,
+      complianceOverride: overrideActive
+        ? {
+            until: plant.complianceOverrideUntil!,
+            note: plant.complianceOverrideNote ?? '',
+          }
+        : null,
       createdAt: plant.createdAt.toISOString(),
       createdBy: nameOf(plant.createdBy) ?? 'Unknown',
       capabilities: this.capabilities(auth, plant),

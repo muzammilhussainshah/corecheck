@@ -3,7 +3,7 @@
 Har kaam mukammal hone par yahan `[x]` lagta hai. `🔄` = abhi chal raha hai.
 Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
-**Abhi:** Phase 3 — Documents ki web screens 🔄
+**Abhi:** Phase 4 — Reception (template + reception check + approval) 🔄
 
 ---
 
@@ -53,7 +53,7 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - [x] Compliance engine: missing/expired mandatory document → approval block + Restricted/Offline
 - [x] Har raat expiry check (plants restrict + audit)
 - [x] Document restriction override: reason + review date, original mehfooz
-- [ ] Web: Plant profile ka Documents tab (upload, verify, replace, history)
+- [x] Web: Plant profile ka Documents tab (upload, verify, replace, history)
 - [x] Tests: documents + compliance + file tenant isolation
 
 ## Phase 4 — Reception
@@ -127,3 +127,6 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - Sath mein fix: (1) login ke baad wapas usi page par (QR scan ke liye, sirf app ke andar ke paths). (2) Chrome binary downloads ko khali 204 bana deta tha — ab file naam `X-Filename` header mein. (3) QR label par lamba naam/organisation ab label ke andar hi rehta hai.
 - **Phase 2 mukammal ✅**
 - Phase 3 backend mukammal: documents + versions (purani file/verification mehfooz), PDF/JPEG/PNG ki asal type check, photo metadata (GPS) hataya jata hai, verify/reject, status database views se (org time zone), compliance engine (approved plant ka mandatory document missing/expired/rejected → khud Restricted), har ghante expiry check, override sirf reason + review date ke sath (Manager/Admin). Production mein Supabase Storage lazmi. 11 naye tests; kul 142 pass.
+- Phase 3 web mukammal: plant ka Documents tab (mandatory documents ki halat, upload, view, download, verify, reject, naya version, archive, purane versions), "Documents" main page (Expired / Approaching / Awaiting / Rejected cards + filters), register mein Documents column + filter, Return to service par documents ki rok aur override form (reason + review date). Browser mein poora flow check kiya: reject karte hi approved plant khud Restricted hua.
+- Deploy ke liye note: production/staging mein `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` set karne honge (docs/environments.md).
+- **Phase 3 mukammal ✅**

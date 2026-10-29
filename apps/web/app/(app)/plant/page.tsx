@@ -29,6 +29,8 @@ import {
   PLANT_OWNERSHIP_LABELS,
   PLANT_OWNERSHIPS,
   PLANT_STATUS_LABELS,
+  PLANT_COMPLIANCE_LABELS,
+  PLANT_COMPLIANCE_STATES,
   PLANT_STATUSES,
   type PlantStatus,
   type PlantSummary,
@@ -49,6 +51,7 @@ import {
   TableCard,
 } from '@corecheck/ui';
 import { AppPageHeader } from '../../../components/AppPageHeader';
+import { ComplianceBadge } from '../../../components/plant/DocumentBadges';
 import { PlantStatusBadge } from '../../../components/plant/PlantStatusBadge';
 import { usePlantsQuery, useSitesQuery } from '../../../lib/api';
 import { useConfigList } from '../../../lib/config';
@@ -64,6 +67,7 @@ interface Filters {
   categoryId: string | null;
   ownership: string | null;
   companyId: string | null;
+  compliance: string | null;
 }
 const NO_FILTERS: Filters = {
   status: null,
@@ -72,6 +76,7 @@ const NO_FILTERS: Filters = {
   categoryId: null,
   ownership: null,
   companyId: null,
+  compliance: null,
 };
 
 const useStatusCount = (status?: PlantStatus) =>
@@ -113,6 +118,8 @@ export default function PlantRegisterPage() {
     categoryId: filters.categoryId ?? undefined,
     ownership: (filters.ownership ?? undefined) as ListPlantsQuery['ownership'],
     companyId: filters.companyId ?? undefined,
+    compliance: (filters.compliance ??
+      undefined) as ListPlantsQuery['compliance'],
     sort: sort.field as ListPlantsQuery['sort'],
     order: sort.order,
   };
@@ -258,6 +265,12 @@ export default function PlantRegisterPage() {
           )}
         </Stack>
       ),
+    },
+    {
+      key: 'documents',
+      header: 'Documents',
+      width: 190,
+      render: (plant) => <ComplianceBadge state={plant.compliance} />,
     },
     {
       key: 'status',
@@ -533,6 +546,19 @@ export default function PlantRegisterPage() {
                 label: PLANT_OWNERSHIP_LABELS[ownership],
               })),
               'ownership',
+            ),
+          },
+          {
+            key: 'documents',
+            label: 'Documents',
+            count: draft.compliance ? 1 : 0,
+            content: single(
+              'compliance',
+              PLANT_COMPLIANCE_STATES.map((state) => ({
+                value: state,
+                label: PLANT_COMPLIANCE_LABELS[state],
+              })),
+              'documents',
             ),
           },
           {

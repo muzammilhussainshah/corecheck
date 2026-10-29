@@ -27,8 +27,12 @@ Check Path `/health` for the API.
 - Environment: `NODE_ENV=production`, `COOKIE_SECURE=true`, `TRUST_PROXY=true`,
   `DATABASE_URL`, `DATABASE_SSL=verify`, `DATABASE_CA_CERT`, `PIN_PEPPER`,
   `MFA_ENCRYPTION_KEY`, and `WEB_APP_URL` = that environment's web app address
-  (plant QR codes point at `<WEB_APP_URL>/q/<token>`; see
-  `apps/api/.env.example` for the rest).
+  (plant QR codes point at `<WEB_APP_URL>/q/<token>`), `STORAGE_DRIVER=supabase`,
+  `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Supabase > Project Settings >
+  API; plant documents go to the private `corecheck-files` bucket, created on
+  first upload). See `apps/api/.env.example` for the rest. The API refuses to
+  start in production without Supabase storage: a Render disk is wiped on
+  every deploy.
 
 **Web** (customer app) and **Admin** (internal portal)
 

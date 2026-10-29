@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Alert,
   Button,
   Card,
   Center,
@@ -16,9 +17,12 @@ import {
   Textarea,
   Title,
 } from '@mantine/core';
+import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import {
+  IconAlertTriangle,
   IconArchive,
+  IconCalendar,
   IconCircleCheck,
   IconDotsVertical,
   IconHandStop,
@@ -27,7 +31,7 @@ import {
   IconRestore,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import {
   type ApiError,
@@ -35,6 +39,7 @@ import {
   auditActionLabel,
   type CustomField,
   type CustomValue,
+  ERROR_CODES,
   PLANT_COMPANY_KIND_LABELS,
   PLANT_OWNERSHIP_LABELS,
   type PlantDetail,
@@ -55,6 +60,8 @@ import {
   showApiErrors,
 } from '@corecheck/ui';
 import { AppPageHeader } from '../../../../components/AppPageHeader';
+import { ComplianceBadge } from '../../../../components/plant/DocumentBadges';
+import { DocumentsTab } from '../../../../components/plant/DocumentsTab';
 import { PlantStatusBadge } from '../../../../components/plant/PlantStatusBadge';
 import {
   usePlantHistoryQuery,
@@ -161,37 +168,99 @@ function ReturnModal({
   opened: boolean;
   onClose: () => void;
 }) {
+  const { can } = useSession();
   const [returnToService, { isLoading }] = useReturnPlantToServiceMutation();
-  const form = useForm({ initialValues: { note: '' } });
-  const submit = form.onSubmit(async (values) => {
-    const result = await returnToService({ id: plant.id, note: values.note });
-    if (result.error) return showApiErrors(form, result.error as ApiError);
+  // Documents that stop it going Online, once the API has said so.
+  const [blockers, setBlockers] = useState<string[] | null>(null);
+  const overriding = !!blockers && can('plant_status.override');
+  const form = useForm({
+    initialValues: { note: '', reviewOn: '' },
+    validate: {
+      note: (value) =>
+        overriding && !value.trim()
+          ? 'Give the reason for the override.'
+          : null,
+      reviewOn: (value) =>
+        overriding && !value ? 'Choose the review date.' : null,
+    },
+  });
+  const close = () => {
+    setBlockers(null);
     form.reset();
     onClose();
+  };
+  const submit = form.onSubmit(async (values) => {
+    const result = await returnToService({
+      id: plant.id,
+      note: values.note,
+      ...(overriding && { override: true, reviewOn: values.reviewOn }),
+    });
+    if (result.error) {
+      const error = result.error as ApiError;
+      if (error.code === ERROR_CODES.DOCUMENTS_NOT_VALID)
+        return setBlockers((error.details?.documents as string[]) ?? []);
+      return showApiErrors(form, error);
+    }
+    close();
   });
   return (
-    <Modal opened={opened} onClose={onClose} title="Return to service">
+    <Modal opened={opened} onClose={close} title="Return to service">
       <form onSubmit={submit} noValidate>
         <Stack>
-          <Text size="sm" c="dimmed">
-            {plant.approvedAt
-              ? 'The plant goes back Online and can be used again.'
-              : 'This plant has not passed reception yet, so it returns to Pending Reception rather than Online.'}
-          </Text>
+          {blockers ? (
+            <Alert
+              color="red"
+              icon={<IconAlertTriangle size={18} />}
+              title="Mandatory documents are not valid"
+            >
+              <Text size="sm">{blockers.join(', ')}</Text>
+              <Text size="sm" mt={4}>
+                {overriding
+                  ? 'You can override this until a review date. The missing documents stay on record.'
+                  : 'Upload or verify them first, or ask a Manager or Admin to override.'}
+              </Text>
+            </Alert>
+          ) : (
+            <Text size="sm" c="dimmed">
+              {plant.approvedAt
+                ? 'The plant goes back Online and can be used again.'
+                : 'This plant has not passed reception yet, so it returns to Pending Reception rather than Online.'}
+            </Text>
+          )}
           <Textarea
-            label="Note"
+            label={overriding ? 'Reason for the override' : 'Note'}
+            required={overriding}
             autosize
             minRows={2}
-            placeholder="Optional: what was done"
+            placeholder={overriding ? undefined : 'Optional: what was done'}
             {...form.getInputProps('note')}
           />
+          {overriding && (
+            <DateInput
+              label="Review by"
+              description="The restriction applies again after this date unless the documents are valid."
+              required
+              valueFormat="D MMM YYYY"
+              leftSection={<IconCalendar size={16} />}
+              minDate={new Date()}
+              value={form.values.reviewOn || null}
+              onChange={(value) => form.setFieldValue('reviewOn', value ?? '')}
+              error={form.errors.reviewOn}
+            />
+          )}
           <Group justify="flex-end">
-            <Button variant="default" onClick={onClose}>
+            <Button variant="default" onClick={close}>
               Cancel
             </Button>
-            <Button type="submit" loading={isLoading}>
-              Return to service
-            </Button>
+            {(!blockers || overriding) && (
+              <Button
+                type="submit"
+                color={overriding ? 'orange' : undefined}
+                loading={isLoading}
+              >
+                {overriding ? 'Override and return' : 'Return to service'}
+              </Button>
+            )}
           </Group>
         </Stack>
       </form>
@@ -274,8 +343,22 @@ const ComingTab = ({ title, message }: { title: string; message: string }) => (
   </Card>
 );
 
+const TABS = [
+  'overview',
+  'reception',
+  'documents',
+  'meters',
+  'checks',
+  'defects',
+  'history',
+];
+
 export default function PlantProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  // The open tab lives in the address, so links can open it (?tab=documents).
+  const requested = useSearchParams().get('tab') ?? 'overview';
+  const tab = TABS.includes(requested) ? requested : 'overview';
   const { me } = useSession();
   const { data: plant, error } = usePlantQuery(id);
   const { data: fields } = useConfigList('custom-fields', {
@@ -413,7 +496,18 @@ export default function PlantProfilePage() {
         }
       />
 
-      <Tabs defaultValue="overview" keepMounted={false}>
+      <Tabs
+        value={tab}
+        onChange={(value) =>
+          router.replace(
+            value === 'overview'
+              ? `/plant/${plant.id}`
+              : `/plant/${plant.id}?tab=${value}`,
+            { scroll: false },
+          )
+        }
+        keepMounted={false}
+      >
         <Tabs.List mb="md">
           <Tabs.Tab value="overview">Overview</Tabs.Tab>
           <Tabs.Tab value="reception">Reception</Tabs.Tab>
@@ -495,6 +589,18 @@ export default function PlantProfilePage() {
                       ? [{ label: 'Reason', value: plant.statusNote }]
                       : []),
                     {
+                      label: 'Documents',
+                      value: <ComplianceBadge state={plant.compliance} />,
+                    },
+                    ...(plant.complianceOverride
+                      ? [
+                          {
+                            label: 'Override',
+                            value: `Until ${formatDate(plant.complianceOverride.until, tz)}: ${plant.complianceOverride.note}`,
+                          },
+                        ]
+                      : []),
+                    {
                       label: 'Last change',
                       value: `${formatDateTime(plant.statusChangedAt, tz)}${plant.statusChangedBy ? ` by ${plant.statusChangedBy}` : ''}`,
                     },
@@ -524,10 +630,7 @@ export default function PlantProfilePage() {
           />
         </Tabs.Panel>
         <Tabs.Panel value="documents">
-          <ComingTab
-            title="No documents yet"
-            message="Certificates and documents for this plant, with their expiry and verification, appear here."
-          />
+          <DocumentsTab plant={plant} />
         </Tabs.Panel>
         <Tabs.Panel value="meters">
           <ComingTab

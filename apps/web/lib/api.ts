@@ -22,7 +22,11 @@ import {
   type PocCheck,
   type PocCreateCheckInput,
   type CreatePlantInput,
+  type DocumentRegisterRow,
+  type ListDocumentsQuery,
   type ListPlantsQuery,
+  type PlantDocument,
+  type PlantDocuments,
   type PlantDetail,
   type PlantDuplicates,
   type PlantDuplicatesQuery,
@@ -112,6 +116,7 @@ export const api = createApi({
     'Poc',
     'Config',
     'Plant',
+    'Document',
   ],
   endpoints: (build) => ({
     // ------------------------------------------------------------ session
@@ -459,6 +464,60 @@ export const api = createApi({
       invalidatesTags: ['Plant'],
     }),
 
+    // ---------------------------------------------------------- documents
+    // A document change can restrict plant, so plant data is refreshed too.
+    plantDocuments: build.query<PlantDocuments, string>({
+      query: (plantId) => ({ url: `/plants/${plantId}/documents` }),
+      providesTags: ['Document'],
+    }),
+    documentsRegister: build.query<
+      Paginated<DocumentRegisterRow>,
+      ListDocumentsQuery
+    >({
+      query: (params) => ({
+        url: '/documents',
+        params: cleanParams({ ...params }),
+      }),
+      providesTags: ['Document'],
+    }),
+    uploadDocument: build.mutation<
+      PlantDocument,
+      { plantId: string; form: FormData }
+    >({
+      query: ({ plantId, form }) => ({
+        url: `/plants/${plantId}/documents`,
+        method: 'POST',
+        body: form,
+      }),
+      invalidatesTags: ['Document', 'Plant'],
+    }),
+    replaceDocument: build.mutation<
+      PlantDocument,
+      { documentId: string; form: FormData }
+    >({
+      query: ({ documentId, form }) => ({
+        url: `/documents/${documentId}/versions`,
+        method: 'POST',
+        body: form,
+      }),
+      invalidatesTags: ['Document', 'Plant'],
+    }),
+    documentAction: build.mutation<
+      PlantDocument,
+      {
+        documentId: string;
+        action: 'verify' | 'reject' | 'archive' | 'restore';
+        reason?: string;
+      }
+    >({
+      query: ({ documentId, action, reason }) => ({
+        url: `/documents/${documentId}/${action}`,
+        method: 'POST',
+        body: action === 'reject' ? { reason } : undefined,
+      }),
+      invalidatesTags: ['Document', 'Plant'],
+    }),
+
     // -------------------------------------------------------------- audit
     auditEvents: build.query<Paginated<AuditEvent>, ListAuditQuery>({
       query: (params) => ({
@@ -521,6 +580,11 @@ export const {
   useRestrictPlantMutation,
   useReturnPlantToServiceMutation,
   useSetPlantArchivedMutation,
+  usePlantDocumentsQuery,
+  useDocumentsRegisterQuery,
+  useUploadDocumentMutation,
+  useReplaceDocumentMutation,
+  useDocumentActionMutation,
   useAuditEventsQuery,
   usePocChecksQuery,
   useCreatePocCheckMutation,

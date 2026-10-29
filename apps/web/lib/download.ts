@@ -12,13 +12,12 @@ const filenameOf = (response: Response, fallback: string): string => {
 };
 
 /**
- * Downloads a file the API generates (an export, a label sheet). Failures
- * are shown as a toast with the server's message, never as a broken page.
+ * Fetches a file from the API. Failures are shown as a toast with the
+ * server's message, never as a broken page.
  */
-export const downloadFile = async (
+const fetchFile = async (
   path: string,
-  fallbackName: string,
-): Promise<boolean> => {
+): Promise<{ blob: Blob; response: Response } | null> => {
   let response: Response;
   try {
     response = await fetch(`/api${path}`, { credentials: 'same-origin' });
@@ -29,7 +28,7 @@ export const downloadFile = async (
       message:
         'Could not reach CoreCheck. Check your connection and try again.',
     });
-    return false;
+    return null;
   }
   if (!response.ok) {
     const error = (await response.json().catch(() => null)) as ApiError | null;
@@ -37,18 +36,47 @@ export const downloadFile = async (
       error ?? {
         statusCode: response.status,
         code: ERROR_CODES.INTERNAL_ERROR,
-        message: 'The file could not be created. Try again.',
+        message: 'The file could not be opened. Try again.',
       },
     );
-    return false;
+    return null;
   }
-  const url = URL.createObjectURL(await response.blob());
+  return { blob: await response.blob(), response };
+};
+
+/** Saves a file the API generates (an export, a label sheet, a document). */
+export const downloadFile = async (
+  path: string,
+  fallbackName: string,
+): Promise<boolean> => {
+  const file = await fetchFile(path);
+  if (!file) return false;
+  const url = URL.createObjectURL(file.blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = filenameOf(response, fallbackName);
+  link.download = filenameOf(file.response, fallbackName);
   document.body.append(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
   return true;
+};
+
+/**
+ * Opens a document (PDF or photo) in a new tab to read. The tab is opened
+ * straight away, while the click still counts as the user's, so popup
+ * blockers allow it; the file is put in it once fetched.
+ */
+export const openFile = async (path: string): Promise<void> => {
+  const tab = window.open('', '_blank');
+  const file = await fetchFile(path);
+  if (!file) {
+    tab?.close();
+    return;
+  }
+  const url = URL.createObjectURL(file.blob);
+  if (tab) tab.location.href = url;
+  else window.location.href = url;
+  // Long enough for the tab to load it.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };

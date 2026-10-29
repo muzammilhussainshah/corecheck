@@ -176,7 +176,7 @@ export type PlantComplianceState = (typeof PLANT_COMPLIANCE_STATES)[number];
 export const PLANT_COMPLIANCE_LABELS: Record<PlantComplianceState, string> = {
   compliant: 'Documents valid',
   expiring: 'Documents expiring',
-  non_compliant: 'Documents missing or expired',
+  non_compliant: 'Documents not valid',
   not_required: 'No documents required',
 };
 

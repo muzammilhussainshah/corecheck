@@ -85,8 +85,20 @@ export const axiosBaseQuery =
     onError?: (error: ApiError) => void,
   ): BaseQueryFn<QueryArgs, unknown, ApiError> =>
   async ({ url, method = 'GET', body, params }) => {
+    // A file upload: with the client's JSON default axios would turn the
+    // form into JSON. Naming it multipart lets the browser add the boundary.
+    const headers =
+      typeof FormData !== 'undefined' && body instanceof FormData
+        ? { 'Content-Type': 'multipart/form-data' }
+        : undefined;
     try {
-      const response = await http.request({ url, method, data: body, params });
+      const response = await http.request({
+        url,
+        method,
+        data: body,
+        params,
+        headers,
+      });
       return { data: response.data };
     } catch (error) {
       const apiError = toApiError(error);

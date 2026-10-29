@@ -7,6 +7,13 @@ const USER_ACTIONS: Record<string, string> = {
   unlock: 'User unlocked. They can sign in again.',
 };
 
+const DOCUMENT_ACTIONS: Record<string, string> = {
+  verify: 'Document verified.',
+  reject: 'Document rejected. Upload a new version to replace it.',
+  archive: 'Document archived.',
+  restore: 'Document restored.',
+};
+
 /** The toast each customer-app action shows when it succeeds. */
 export const SUCCESS_MESSAGES: Record<string, SuccessMessage> = {
   login: 'Signed in successfully.',
@@ -41,5 +48,10 @@ export const SUCCESS_MESSAGES: Record<string, SuccessMessage> = {
       : 'Restriction lifted. The plant is back to Pending Reception.',
   setPlantArchived: (arg) =>
     arg.archived ? 'Plant archived.' : 'Plant restored.',
+  uploadDocument: (_arg, result) =>
+    `${result.documentType.name} uploaded. It is awaiting verification.`,
+  replaceDocument: (_arg, result) =>
+    `New version of ${result.documentType.name} uploaded. The earlier one is kept.`,
+  documentAction: (arg) => DOCUMENT_ACTIONS[arg.action] ?? 'Done.',
   createPocCheck: 'Check created.',
 };
