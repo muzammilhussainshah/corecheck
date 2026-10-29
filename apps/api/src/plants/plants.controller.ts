@@ -6,8 +6,10 @@ import {
   Patch,
   type PipeTransform,
   Post,
+  Res,
   StreamableFile,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import type { z } from 'zod';
 import {
   type AuditEvent,
@@ -41,12 +43,19 @@ class QrTokenPipe implements PipeTransform<string, string> {
   }
 }
 
-const download = (file: FileOutput): StreamableFile =>
-  new StreamableFile(file.body, {
+/**
+ * A generated file for the web app, which fetches it and saves it under the
+ * name in X-Filename. No Content-Disposition on purpose: Chrome takes a
+ * binary "attachment" response away from fetch() as a download of its own,
+ * leaving the page an empty 204.
+ */
+const download = (file: FileOutput, res: Response): StreamableFile => {
+  res.setHeader('X-Filename', encodeURIComponent(file.filename));
+  return new StreamableFile(file.body, {
     type: file.contentType,
-    disposition: `attachment; filename="${file.filename}"`,
     length: file.body.length,
   });
+};
 
 @Controller('plants')
 export class PlantsController {
@@ -81,8 +90,9 @@ export class PlantsController {
     @CurrentAuth() auth: CustomerAuth,
     @ValidQuery(exportPlantsQuerySchema)
     query: z.output<typeof exportPlantsQuerySchema>,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
-    return download(await this.output.export(auth, query));
+    return download(await this.output.export(auth, query), res);
   }
 
   @Get('qr-labels')
@@ -91,8 +101,9 @@ export class PlantsController {
     @CurrentAuth() auth: CustomerAuth,
     @ValidQuery(plantQrLabelsQuerySchema)
     query: z.output<typeof plantQrLabelsQuerySchema>,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
-    return download(await this.output.labels(auth, query));
+    return download(await this.output.labels(auth, query), res);
   }
 
   @Get('qr/:token')

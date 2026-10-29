@@ -26,7 +26,9 @@ Check Path `/health` for the API.
 - Start: `npm run db:migrate:prod -w @corecheck/api && npm run start:prod -w @corecheck/api`
 - Environment: `NODE_ENV=production`, `COOKIE_SECURE=true`, `TRUST_PROXY=true`,
   `DATABASE_URL`, `DATABASE_SSL=verify`, `DATABASE_CA_CERT`, `PIN_PEPPER`,
-  `MFA_ENCRYPTION_KEY` (see `apps/api/.env.example` for the rest).
+  `MFA_ENCRYPTION_KEY`, and `WEB_APP_URL` = that environment's web app address
+  (plant QR codes point at `<WEB_APP_URL>/q/<token>`; see
+  `apps/api/.env.example` for the rest).
 
 **Web** (customer app) and **Admin** (internal portal)
 

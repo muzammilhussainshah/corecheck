@@ -19,6 +19,10 @@ export function proxy(request: NextRequest) {
   const login = request.nextUrl.clone();
   login.pathname = '/login';
   login.search = '';
+  // Come back here after signing in, e.g. to a scanned plant QR code. The
+  // login page accepts only same-site paths (lib/return-path.ts).
+  if (pathname !== '/')
+    login.searchParams.set('next', `${pathname}${request.nextUrl.search}`);
   return NextResponse.redirect(login);
 }
 

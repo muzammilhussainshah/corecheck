@@ -51,6 +51,41 @@ const statusLabel = (plant: PlantSummary): string =>
     ? PLANT_STATUS_LABELS.archived
     : PLANT_STATUS_LABELS[plant.status];
 
+/** Text cut to fit one line of the given width, ending "…" when cut. */
+const fitLine = (
+  doc: PDFKit.PDFDocument,
+  text: string,
+  width: number,
+): string => {
+  if (doc.widthOfString(text) <= width) return text;
+  let cut = text;
+  while (cut.length > 0 && doc.widthOfString(`${cut}…`) > width)
+    cut = cut.slice(0, -1);
+  return `${cut.trimEnd()}…`;
+};
+
+/** Text wrapped on words into at most `max` lines, the last cut to fit. */
+const fitLines = (
+  doc: PDFKit.PDFDocument,
+  text: string,
+  width: number,
+  max: number,
+): string[] => {
+  const lines: string[] = [];
+  let rest = text.trim();
+  while (rest && lines.length < max - 1) {
+    const words = rest.split(/\s+/);
+    let line = words.shift()!;
+    while (words.length && doc.widthOfString(`${line} ${words[0]}`) <= width)
+      line = `${line} ${words.shift()}`;
+    if (doc.widthOfString(line) > width) break;
+    lines.push(line);
+    rest = words.join(' ');
+  }
+  if (rest) lines.push(fitLine(doc, rest, width));
+  return lines;
+};
+
 /** A4 sheet of 3 × 7 labels, 63.5 × 38.1 mm (a common label stock). */
 const MM = 72 / 25.4;
 const LABEL = {
@@ -221,34 +256,30 @@ export class PlantOutputService {
       });
       const textX = x + LABEL.padding * 2 + qrSize;
       const textWidth = LABEL.width - (textX - x) - LABEL.padding;
-      doc
-        .font('Helvetica-Bold')
-        .fontSize(10)
-        .text(plant.assetId, textX, y + LABEL.padding + 2, {
-          width: textWidth,
-          lineBreak: false,
-          ellipsis: true,
-        })
-        .font('Helvetica')
-        .fontSize(8)
-        .text(plant.name, textX, doc.y + 2, {
-          width: textWidth,
-          height: 22,
-          ellipsis: true,
-        })
-        .fillColor('#555555')
-        .fontSize(7)
-        .text(plant.site.name, textX, y + LABEL.height - LABEL.padding - 16, {
-          width: textWidth,
-          lineBreak: false,
-          ellipsis: true,
-        })
-        .text(auth.org.name, {
-          width: textWidth,
-          lineBreak: false,
-          ellipsis: true,
-        })
-        .fillColor('black');
+      const top = y + LABEL.padding;
+      const bottom = y + LABEL.height - LABEL.padding;
+      // Each line is cut to the label's width so nothing spills onto the
+      // next label; the name may take two lines.
+      doc.font('Helvetica-Bold').fontSize(10);
+      doc.text(fitLine(doc, plant.assetId, textWidth), textX, top + 1, {
+        lineBreak: false,
+      });
+      doc.font('Helvetica').fontSize(8);
+      for (const [line, text] of fitLines(
+        doc,
+        plant.name,
+        textWidth,
+        2,
+      ).entries())
+        doc.text(text, textX, top + 15 + line * 10, { lineBreak: false });
+      doc.fillColor('#555555').fontSize(7);
+      doc.text(fitLine(doc, plant.site.name, textWidth), textX, bottom - 17, {
+        lineBreak: false,
+      });
+      doc.text(fitLine(doc, auth.org.name, textWidth), textX, bottom - 8, {
+        lineBreak: false,
+      });
+      doc.fillColor('black');
     }
     doc.end();
     await done;

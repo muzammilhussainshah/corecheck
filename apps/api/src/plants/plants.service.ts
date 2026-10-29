@@ -911,6 +911,7 @@ export class PlantsService {
       statusNote: plant.statusNote,
       statusChangedAt: plant.statusChangedAt.toISOString(),
       statusChangedBy: nameOf(plant.statusChangedBy),
+      approvedAt: plant.approvedAt?.toISOString() ?? null,
       createdAt: plant.createdAt.toISOString(),
       createdBy: nameOf(plant.createdBy) ?? 'Unknown',
       capabilities: this.capabilities(auth, plant),

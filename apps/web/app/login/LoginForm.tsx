@@ -12,6 +12,7 @@ import {
 } from '@corecheck/shared';
 import { AuthLayout, CodeInput, COLORS } from '@corecheck/ui';
 import { useLoginMutation } from '../../lib/api';
+import { safeReturnPath } from '../../lib/return-path';
 
 /** Why the user is back on this page, from ?reason=. */
 const REASONS: Record<string, string> = {
@@ -26,6 +27,7 @@ const REASONS: Record<string, string> = {
   [ERROR_CODES.ORG_SUSPENDED]:
     "Your organisation's CoreCheck account is suspended. Please contact the CoreCheck team.",
   SIGNED_OUT: 'You have signed out.',
+  [ERROR_CODES.UNAUTHENTICATED]: 'Sign in to continue.',
 };
 
 export function LoginForm() {
@@ -65,8 +67,13 @@ export function LoginForm() {
       setPinFocus((n) => n + 1);
       return;
     }
-    // Every sign-in starts on the Dashboard.
-    router.replace(result.data.me.mustChangePin ? '/change-pin' : '/');
+    // A sign-in starts on the Dashboard, unless it was interrupting a page
+    // the user had opened, such as a scanned plant QR code.
+    router.replace(
+      result.data.me.mustChangePin
+        ? '/change-pin'
+        : (safeReturnPath(params.get('next')) ?? '/'),
+    );
   });
 
   const remaining = failure?.details?.remainingAttempts as number | undefined;

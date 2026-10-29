@@ -3,7 +3,7 @@
 Har kaam mukammal hone par yahan `[x]` lagta hai. `🔄` = abhi chal raha hai.
 Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
-**Abhi:** Phase 2 — Plant Register ki web screens (list, add, profile, export, QR) 🔄
+**Abhi:** Phase 3 — Documents aur compliance 🔄
 
 ---
 
@@ -34,12 +34,12 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - [x] Manual status change / override: reason zaroori, original audit mein (PLC-007)
 - [x] Archive / restore (PLC-006)
 - [x] Site scope: user sirf apni sites ke plant dekhe/badle
-- [ ] Web: Plant Register list (columns, search, filters, pagination)
-- [ ] Web: Add plant form
-- [ ] Web: Plant profile (Overview, Reception, Documents, Meter readings, Audit; Checks/Defects khali tabs)
-- [ ] Register export Excel / CSV (PLR-004)
-- [ ] QR code: random token, login + scope zaroori (PLT-AC-04)
-- [ ] QR labels PDF print (ek ya kai plants)
+- [x] Web: Plant Register list (columns, search, filters, pagination)
+- [x] Web: Add plant form
+- [x] Web: Plant profile (Overview, Reception, Documents, Meter readings, Audit; Checks/Defects khali tabs)
+- [x] Register export Excel / CSV (PLR-004)
+- [x] QR code: random token, login + scope zaroori (PLT-AC-04)
+- [x] QR labels PDF print (ek ya kai plants)
 - [x] Tests: plant API + lifecycle + scope + duplicate Asset ID
 
 ## Phase 3 — Documents aur compliance
@@ -123,3 +123,6 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - Sath mein fix: duplicate naam ka error ab form ke field ke neeche dikhta hai (pehle sirf 3 second ka toast tha) — Sites, Teams, Roles waghera par bhi.
 - **Phase 1 mukammal ✅**
 - Phase 2 backend mukammal: plants table (RLS), Asset ID generate/duplicate block, Plant No./Serial warnings, custom values, restrict/return to service, archive, history, Excel/CSV export (formula-injection se mehfooz), QR token + labels PDF. 14 plant tests + naya test jo har org table par RLS check karta hai.
+- Phase 2 web mukammal: Plant register (status cards, search, filters, pagination), Add/Edit form (duplicate warning live), profile (tabs + history), Restrict / Return to service / Archive, Excel/CSV export, QR labels PDF, `/q/<token>` scan page. Quick actions mein "Add Plant". Browser mein poora flow check kiya.
+- Sath mein fix: (1) login ke baad wapas usi page par (QR scan ke liye, sirf app ke andar ke paths). (2) Chrome binary downloads ko khali 204 bana deta tha — ab file naam `X-Filename` header mein. (3) QR label par lamba naam/organisation ab label ke andar hi rehta hai.
+- **Phase 2 mukammal ✅**

@@ -21,7 +21,17 @@ import {
   type Paginated,
   type PocCheck,
   type PocCreateCheckInput,
+  type CreatePlantInput,
+  type ListPlantsQuery,
+  type PlantDetail,
+  type PlantDuplicates,
+  type PlantDuplicatesQuery,
+  type PlantSaved,
+  type PlantSummary,
   type PlantType,
+  type RestrictPlantInput,
+  type ReturnToServiceInput,
+  type UpdatePlantInput,
   type PocPullResponse,
   type RoleSummary,
   type SeatUsage,
@@ -41,6 +51,7 @@ import {
   createHttpClient,
   SESSION_ENDING_CODES,
 } from '@corecheck/ui';
+import { loginUrl } from './return-path';
 
 const PUBLIC_PATHS = ['/login'];
 
@@ -58,7 +69,8 @@ const handleSessionErrors = (error: ApiError): void => {
     SESSION_ENDING_CODES.includes(error.code) &&
     !PUBLIC_PATHS.includes(path)
   ) {
-    window.location.assign(`/login?reason=${error.code}`);
+    // Come back to this page after signing in again (e.g. a scanned QR code).
+    window.location.assign(loginUrl(error.code));
   } else if (
     error.code === ERROR_CODES.PIN_CHANGE_REQUIRED &&
     path !== '/change-pin'
@@ -99,6 +111,7 @@ export const api = createApi({
     'Audit',
     'Poc',
     'Config',
+    'Plant',
   ],
   endpoints: (build) => ({
     // ------------------------------------------------------------ session
@@ -370,6 +383,82 @@ export const api = createApi({
       invalidatesTags: [{ type: 'Config', id: 'plant-types' }],
     }),
 
+    // -------------------------------------------------------------- plant
+    plants: build.query<Paginated<PlantSummary>, ListPlantsQuery>({
+      query: (params) => ({
+        url: '/plants',
+        params: cleanParams({ ...params }),
+      }),
+      providesTags: ['Plant'],
+    }),
+    plant: build.query<PlantDetail, string>({
+      query: (id) => ({ url: `/plants/${id}` }),
+      providesTags: (_result, _error, id) => [{ type: 'Plant', id }],
+    }),
+    plantHistory: build.query<
+      Paginated<AuditEvent>,
+      { id: string } & ListAuditQuery
+    >({
+      query: ({ id, ...params }) => ({
+        url: `/plants/${id}/history`,
+        params: cleanParams({ ...params }),
+      }),
+      providesTags: (_result, _error, { id }) => [{ type: 'Plant', id }],
+    }),
+    plantDuplicates: build.query<PlantDuplicates, PlantDuplicatesQuery>({
+      query: (params) => ({
+        url: '/plants/duplicates',
+        params: cleanParams({ ...params }),
+      }),
+    }),
+    resolvePlantQr: build.query<{ id: string }, string>({
+      query: (token) => ({ url: `/plants/qr/${encodeURIComponent(token)}` }),
+    }),
+    createPlant: build.mutation<PlantSaved, CreatePlantInput>({
+      query: (body) => ({ url: '/plants', method: 'POST', body }),
+      invalidatesTags: ['Plant'],
+    }),
+    updatePlant: build.mutation<PlantSaved, { id: string } & UpdatePlantInput>({
+      query: ({ id, ...body }) => ({
+        url: `/plants/${id}`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Plant'],
+    }),
+    restrictPlant: build.mutation<
+      PlantDetail,
+      { id: string } & RestrictPlantInput
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/plants/${id}/restrict`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Plant'],
+    }),
+    returnPlantToService: build.mutation<
+      PlantDetail,
+      { id: string } & ReturnToServiceInput
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/plants/${id}/return-to-service`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Plant'],
+    }),
+    setPlantArchived: build.mutation<
+      PlantDetail,
+      { id: string; archived: boolean }
+    >({
+      query: ({ id, archived }) => ({
+        url: `/plants/${id}/${archived ? 'archive' : 'restore'}`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Plant'],
+    }),
+
     // -------------------------------------------------------------- audit
     auditEvents: build.query<Paginated<AuditEvent>, ListAuditQuery>({
       query: (params) => ({
@@ -422,6 +511,16 @@ export const {
   useUpdateConfigMutation,
   useSetConfigArchivedMutation,
   useSetRequiredDocumentsMutation,
+  usePlantsQuery,
+  usePlantQuery,
+  usePlantHistoryQuery,
+  useLazyPlantDuplicatesQuery,
+  useResolvePlantQrQuery,
+  useCreatePlantMutation,
+  useUpdatePlantMutation,
+  useRestrictPlantMutation,
+  useReturnPlantToServiceMutation,
+  useSetPlantArchivedMutation,
   useAuditEventsQuery,
   usePocChecksQuery,
   useCreatePocCheckMutation,

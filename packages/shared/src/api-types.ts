@@ -273,6 +273,8 @@ export interface PlantDetail extends PlantSummary {
   statusNote: string | null;
   statusChangedAt: string;
   statusChangedBy: string | null;
+  /** Last approval; never-approved plant returns to Pending Reception. */
+  approvedAt: string | null;
   createdAt: string;
   createdBy: string;
   /** What the signed-in user may do with this plant. */

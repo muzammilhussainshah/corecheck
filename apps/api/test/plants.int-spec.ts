@@ -412,9 +412,11 @@ describe('Plant register (FRD 7)', () => {
     await register(org.admin, { name: '=HYPERLINK("http://evil")' });
     const csv = await org.admin.get('/plants/export?format=csv').expect(200);
     expect(csv.headers['content-type']).toMatch(/text\/csv/);
-    expect(csv.headers['content-disposition']).toMatch(
-      /attachment; filename="plant-register-\d{4}-\d{2}-\d{2}\.csv"/,
+    expect(csv.headers['x-filename']).toMatch(
+      /^plant-register-\d{4}-\d{2}-\d{2}\.csv$/,
     );
+    // No attachment header: browsers would turn the fetch into a download.
+    expect(csv.headers['content-disposition']).toBeUndefined();
     const text = csv.text.replace(/^﻿/, '');
     expect(text.split('\r\n')[0]).toMatch(/^System Asset ID,Plant Number/);
     expect(text).toContain(`"'=HYPERLINK(""http://evil"")"`);
@@ -479,6 +481,7 @@ describe('Plant register (FRD 7)', () => {
       })
       .expect(200);
     expect(pdf.headers['content-type']).toBe('application/pdf');
+    expect(pdf.headers['x-filename']).toMatch(/.pdf$/);
     expect((pdf.body as Buffer).subarray(0, 4).toString()).toBe('%PDF');
   });
 

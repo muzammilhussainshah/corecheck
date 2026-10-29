@@ -31,5 +31,15 @@ export const SUCCESS_MESSAGES: Record<string, SuccessMessage> = {
   updateConfig: 'Changes saved.',
   setConfigArchived: (arg) => (arg.archived ? 'Archived.' : 'Restored.'),
   setRequiredDocuments: 'Mandatory documents saved.',
+  createPlant: (_arg, result) =>
+    `${result.plant.assetId} registered as Pending Reception.`,
+  updatePlant: 'Plant details saved.',
+  restrictPlant: 'Plant restricted. It is Offline until returned to service.',
+  returnPlantToService: (_arg, result) =>
+    result.status === 'approved'
+      ? 'Plant returned to service.'
+      : 'Restriction lifted. The plant is back to Pending Reception.',
+  setPlantArchived: (arg) =>
+    arg.archived ? 'Plant archived.' : 'Plant restored.',
   createPocCheck: 'Check created.',
 };

@@ -2,6 +2,7 @@
 
 import { Alert, Text } from '@mantine/core';
 import {
+  IconBulldozer,
   IconCalendarExclamation,
   IconClipboardCheck,
   IconMapPinPlus,
@@ -90,6 +91,9 @@ export function AppFrame({ children }: { children: ReactNode }) {
 
   // Only what this role may start (CoreStock rule: never offer a dead end).
   const quickActions: QuickAction[] = [
+    ...(can('plant.create')
+      ? [{ label: 'Add Plant', href: '/plant/new', icon: IconBulldozer }]
+      : []),
     ...(can('users.manage')
       ? [{ label: 'Add User', href: '/admin/users/new', icon: IconUserPlus }]
       : []),

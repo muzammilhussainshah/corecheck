@@ -19,7 +19,7 @@ interface Named {
  * so an existing assignment stays visible but nothing archived can be newly
  * picked (ORG-007).
  */
-const toOptions = (
+export const toOptions = (
   items: Named[] | undefined,
   selected: readonly string[] = [],
 ): ComboboxItem[] =>

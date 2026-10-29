@@ -30,3 +30,6 @@ services:
         sync: false
       - key: MFA_ENCRYPTION_KEY
         sync: false
+      # The web app address plant QR codes open, e.g. https://corecheck-web.vercel.app
+      - key: WEB_APP_URL
+        sync: false
