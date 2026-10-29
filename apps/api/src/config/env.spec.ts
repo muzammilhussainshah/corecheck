@@ -37,14 +37,32 @@ describe('environment validation', () => {
         DATABASE_SSL: 'verify',
       }),
     ).toThrow(/DATABASE_CA_CERT/);
+    // Files on a server disk are lost on deploy, so production needs Supabase.
+    expect(() =>
+      validateEnv({
+        ...base,
+        NODE_ENV: 'production',
+        COOKIE_SECURE: 'true',
+        DATABASE_SSL: 'require',
+      }),
+    ).toThrow(/STORAGE_DRIVER must be supabase/);
     expect(
       validateEnv({
         ...base,
         NODE_ENV: 'production',
         COOKIE_SECURE: 'true',
         DATABASE_SSL: 'require',
+        STORAGE_DRIVER: 'supabase',
+        SUPABASE_URL: 'https://abc.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'k'.repeat(40),
       }).NODE_ENV,
     ).toBe('production');
+  });
+
+  it('needs the Supabase project and key for Supabase storage', () => {
+    expect(() => validateEnv({ ...base, STORAGE_DRIVER: 'supabase' })).toThrow(
+      /SUPABASE_URL[\s\S]*SUPABASE_SERVICE_ROLE_KEY/,
+    );
   });
 
   it('needs only database settings to run migrations', () => {

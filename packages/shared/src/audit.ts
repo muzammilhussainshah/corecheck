@@ -83,6 +83,14 @@ export const AUDIT_ACTIONS = {
   'plant.restored': 'Plant restored',
   'plant.exported': 'Plant register exported',
 
+  // Documents (DOC-002..008)
+  'document.uploaded': 'Document uploaded',
+  'document.replaced': 'Document replaced',
+  'document.verified': 'Document verified',
+  'document.rejected': 'Document rejected',
+  'document.archived': 'Document archived',
+  'document.restored': 'Document restored',
+
   // Internal provisioning (IAD-004)
   'organisation.created': 'Organisation created',
   'organisation.updated': 'Organisation updated',
@@ -121,6 +129,7 @@ export const AUDIT_CATEGORIES = [
   { key: 'meter_type', label: 'Meter types' },
   { key: 'document_type', label: 'Document types' },
   { key: 'plant', label: 'Plant' },
+  { key: 'document', label: 'Documents' },
   { key: 'seat_limit', label: 'Seats' },
   { key: 'organisation', label: 'Organisations' },
   { key: 'staff', label: 'CoreCheck staff' },

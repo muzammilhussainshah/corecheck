@@ -126,3 +126,59 @@ export const OWNERSHIP_COMPANY_KIND: Record<PlantOwnership, PlantCompanyKind> =
     owned: 'owner',
     hired: 'hire_company',
   };
+
+// -------------------------------------------------------------- documents
+
+/** Document statuses (DOC-005). Missing applies to a required type with none. */
+export const DOCUMENT_STATES = [
+  'missing',
+  'awaiting_verification',
+  'valid',
+  'approaching_expiry',
+  'expired',
+  'rejected',
+  'archived',
+] as const;
+export type DocumentState = (typeof DOCUMENT_STATES)[number];
+
+export const DOCUMENT_STATE_LABELS: Record<DocumentState, string> = {
+  missing: 'Missing',
+  awaiting_verification: 'Awaiting Verification',
+  valid: 'Valid',
+  approaching_expiry: 'Approaching Expiry',
+  expired: 'Expired',
+  rejected: 'Rejected',
+  archived: 'Archived',
+};
+
+/** States in which a document satisfies a mandatory requirement. */
+export const COMPLIANT_DOCUMENT_STATES: readonly DocumentState[] = [
+  'valid',
+  'approaching_expiry',
+];
+
+export const DOCUMENT_VERIFICATIONS = [
+  'awaiting',
+  'verified',
+  'rejected',
+] as const;
+export type DocumentVerification = (typeof DOCUMENT_VERIFICATIONS)[number];
+
+/** A plant's standing against its mandatory documents (PLR-001). */
+export const PLANT_COMPLIANCE_STATES = [
+  'compliant',
+  'expiring',
+  'non_compliant',
+  'not_required',
+] as const;
+export type PlantComplianceState = (typeof PLANT_COMPLIANCE_STATES)[number];
+
+export const PLANT_COMPLIANCE_LABELS: Record<PlantComplianceState, string> = {
+  compliant: 'Documents valid',
+  expiring: 'Documents expiring',
+  non_compliant: 'Documents missing or expired',
+  not_required: 'No documents required',
+};
+
+/** Largest accepted document file, in bytes (NFR-003 upload size). */
+export const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;

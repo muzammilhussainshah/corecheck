@@ -50,6 +50,10 @@ export const ERROR_CODES = {
 
   // Offline sync
   ALREADY_SUBMITTED: 'ALREADY_SUBMITTED',
+
+  // Plant
+  /** Mandatory documents missing or expired; an authorised override can pass it. */
+  DOCUMENTS_NOT_VALID: 'DOCUMENTS_NOT_VALID',
   INCOMPLETE_SUBMISSION: 'INCOMPLETE_SUBMISSION',
 } as const;
 

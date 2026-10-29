@@ -5,7 +5,10 @@ import type { StandardRoleKey } from './roles.js';
 import type {
   ClientType,
   CustomFieldType,
+  DocumentState,
+  DocumentVerification,
   OrganisationStatus,
+  PlantComplianceState,
   PlantCompanyKind,
   PlantOwnership,
   PlantStatus,
@@ -259,6 +262,8 @@ export interface PlantSummary {
   area: IdName | null;
   status: PlantStatus;
   restrictionReason: RestrictionReason | null;
+  /** Standing against the plant type's mandatory documents (PLR-001). */
+  compliance: PlantComplianceState;
   archivedAt: string | null;
   updatedAt: string;
 }
@@ -293,6 +298,68 @@ export interface PlantDetail extends PlantSummary {
 export interface PlantSaved {
   plant: PlantDetail;
   duplicates: PlantDuplicates;
+}
+
+// -------------------------------------------------------------- documents
+
+/** One upload of a document; replacing a document adds a version (DOC-007). */
+export interface DocumentVersion {
+  id: string;
+  version: number;
+  reference: string | null;
+  issuedOn: string | null;
+  expiresOn: string | null;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedBy: string;
+  uploadedAt: string;
+  verification: DocumentVerification;
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+  rejectionReason: string | null;
+}
+
+export interface PlantDocument {
+  id: string;
+  plantId: string;
+  documentType: IdName & { hasExpiry: boolean };
+  /** Worked out from the current version and today's date (DOC-005). */
+  state: Exclude<DocumentState, 'missing'>;
+  /** Newest first; the first is the current version. */
+  versions: DocumentVersion[];
+  archivedAt: string | null;
+  capabilities: { replace: boolean; verify: boolean; archive: boolean };
+}
+
+/** A mandatory document of the plant's type and how the plant stands on it. */
+export interface DocumentRequirement {
+  documentType: IdName;
+  state: DocumentState;
+}
+
+export interface PlantCompliance {
+  state: PlantComplianceState;
+  requirements: DocumentRequirement[];
+  /** An authorised override keeping plant in use until the review date. */
+  override: { until: string; note: string; by: string | null } | null;
+}
+
+export interface PlantDocuments {
+  compliance: PlantCompliance;
+  documents: PlantDocument[];
+  capabilities: { upload: boolean };
+}
+
+/** A row of the Documents register across all plant in scope. */
+export interface DocumentRegisterRow {
+  id: string;
+  plant: { id: string; assetId: string; name: string; site: IdName };
+  documentType: IdName;
+  state: Exclude<DocumentState, 'missing'>;
+  reference: string | null;
+  expiresOn: string | null;
+  uploadedAt: string;
 }
 
 /** Plant sharing a Plant Number or Serial Number; a warning, never a block. */

@@ -3,6 +3,7 @@ import type {
   ClientType,
   CustomFieldType,
   CustomValue,
+  DocumentVerification,
   OrganisationStatus,
   PlantCompanyKind,
   PlantOwnership,
@@ -421,6 +422,9 @@ export class PlantEntity {
   @Column('uuid', { nullable: true }) statusChangedBy!: string | null;
   @Column('timestamptz', { nullable: true }) approvedAt!: Date | null;
   @Column('uuid', { nullable: true }) approvedBy!: string | null;
+  @Column('date', { nullable: true }) complianceOverrideUntil!: string | null;
+  @Column('text', { nullable: true }) complianceOverrideNote!: string | null;
+  @Column('uuid', { nullable: true }) complianceOverrideBy!: string | null;
   @Column('text') qrToken!: string;
   @Column('uuid') createdBy!: string;
   @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
@@ -435,6 +439,43 @@ export class PlantDisciplineEntity {
   @PrimaryColumn('uuid') plantId!: string;
   @PrimaryColumn('uuid') disciplineId!: string;
   @Column('uuid') orgId!: string;
+}
+
+@Entity({ schema: SCHEMA, name: 'plant_documents' })
+export class PlantDocumentEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') plantId!: string;
+  @Column('uuid') documentTypeId!: string;
+  @Column('uuid', { nullable: true }) currentVersionId!: string | null;
+  @Column('uuid') createdBy!: string;
+  @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'plant_document_versions' })
+export class PlantDocumentVersionEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') documentId!: string;
+  @Column('integer') version!: number;
+  @Column('text', { nullable: true }) reference!: string | null;
+  @Column('date', { nullable: true }) issuedOn!: string | null;
+  @Column('date', { nullable: true }) expiresOn!: string | null;
+  @Column('text') storagePath!: string;
+  @Column('text') fileName!: string;
+  @Column('text') contentType!: string;
+  @Column('integer') sizeBytes!: number;
+  @Column('uuid') uploadedBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  uploadedAt!: Date;
+  @Column('text') verification!: DocumentVerification;
+  @Column('uuid', { nullable: true }) verifiedBy!: string | null;
+  @Column('timestamptz', { nullable: true }) verifiedAt!: Date | null;
+  @Column('text', { nullable: true }) rejectionReason!: string | null;
 }
 
 export const ENTITIES = [
@@ -466,4 +507,6 @@ export const ENTITIES = [
   PlantTypeRequiredDocumentEntity,
   PlantEntity,
   PlantDisciplineEntity,
+  PlantDocumentEntity,
+  PlantDocumentVersionEntity,
 ];

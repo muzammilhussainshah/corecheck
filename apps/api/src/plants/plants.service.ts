@@ -47,6 +47,7 @@ import {
   UserEntity,
 } from '../database/entities.js';
 import { TenantDb } from '../database/db-context.js';
+import { COMPLIANCE_SQL, ComplianceService } from './compliance.service.js';
 
 type CreateInput = z.output<typeof createPlantSchema>;
 type UpdateInput = z.output<typeof updatePlantSchema>;
@@ -66,7 +67,8 @@ const PLANT_SELECT = `
          p.plant_type_id as "typeId", t.name as "typeName",
          p.category_id as "categoryId", c.name as "categoryName",
          p.company_id as "companyId", co.name as "companyName",
-         p.area_id as "areaId", a.name as "areaName"
+         p.area_id as "areaId", a.name as "areaName",
+         ${COMPLIANCE_SQL} as compliance
     from corecheck.plants p
     join corecheck.plant_types t on t.id = p.plant_type_id
     join corecheck.plant_companies co on co.id = p.company_id
@@ -97,6 +99,7 @@ interface PlantRow {
   companyName: string;
   areaId: string | null;
   areaName: string | null;
+  compliance: PlantSummary['compliance'];
 }
 
 const SORT_COLUMNS: Record<ListQuery['sort'], string> = {
@@ -126,6 +129,7 @@ const toSummary = (row: PlantRow): PlantSummary => ({
   area: row.areaId ? { id: row.areaId, name: row.areaName! } : null,
   status: row.status,
   restrictionReason: row.restrictionReason,
+  compliance: row.compliance,
   archivedAt: row.archivedAt?.toISOString() ?? null,
   updatedAt: row.updatedAt.toISOString(),
 });
@@ -150,6 +154,7 @@ export class PlantsService {
     private readonly tenantDb: TenantDb,
     private readonly audit: AuditService,
     private readonly clock: Clock,
+    private readonly compliance: ComplianceService,
   ) {}
 
   private get db(): EntityManager {
@@ -425,6 +430,9 @@ export class PlantsService {
         { ...after, ...(disciplinesChanged && { disciplinesChanged: true }) },
       );
     }
+    // A new type can bring mandatory documents the plant does not hold.
+    if (after.plantTypeId)
+      await this.compliance.enforce(userActor(auth), [plant.id]);
     return this.saved(auth, plant.id);
   }
 
@@ -455,6 +463,10 @@ export class PlantsService {
    * Lifts a restriction (PLC-005). Plant that was approved before goes back
    * Online; plant never approved returns to Pending Reception so it still
    * goes through reception.
+   *
+   * Going Online needs every mandatory document valid (DOC-AC-01). An
+   * authorised override lets plant back in use without them until a review
+   * date; the missing documents are kept in the audit record (DOC-008).
    */
   async returnToService(
     auth: CustomerAuth,
@@ -473,13 +485,40 @@ export class PlantsService {
       throw conflict(ERROR_CODES.CONFLICT, 'This plant is not restricted.');
 
     const status = plant.approvedAt ? 'approved' : 'pending_reception';
+    const blockers =
+      status === 'approved' ? await this.compliance.blockers(plant.id) : [];
+    const overriding = blockers.length > 0 && input.override;
+    if (blockers.length > 0 && !overriding) {
+      throw conflict(
+        ERROR_CODES.DOCUMENTS_NOT_VALID,
+        `Mandatory documents are not valid: ${blockers.join(', ')}.`,
+        { documents: blockers },
+      );
+    }
+    if (overriding) {
+      const today = await this.compliance.today();
+      if (!input.reviewOn || input.reviewOn < today)
+        throw fieldError('reviewOn', 'Choose a review date from today on.');
+      await this.db.update(
+        PlantEntity,
+        { id },
+        {
+          complianceOverrideUntil: input.reviewOn,
+          complianceOverrideNote: input.note!,
+          complianceOverrideBy: auth.userId,
+        },
+      );
+    }
+
     await this.changeStatus(auth, plant, {
       status,
       restrictionReason: null,
       note: input.note ?? null,
       action: 'plant.returned_to_service',
-      summary: `${status === 'approved' ? 'Returned to service' : 'Lifted the restriction on'} ${plant.assetId} ${plant.name}`,
-      metadata: input.override ? { override: true } : undefined,
+      summary: `${status === 'approved' ? 'Returned to service' : 'Lifted the restriction on'} ${plant.assetId} ${plant.name}${overriding ? ' (override)' : ''}`,
+      metadata: overriding
+        ? { override: true, reviewOn: input.reviewOn, documents: blockers }
+        : undefined,
     });
     return this.get(auth, id);
   }
@@ -571,6 +610,8 @@ export class PlantsService {
       where.push(`p.company_id = ${params.add(query.companyId)}`);
     if (query.ownership)
       where.push(`p.ownership = ${params.add(query.ownership)}`);
+    if (query.compliance)
+      where.push(`(${COMPLIANCE_SQL}) = ${params.add(query.compliance)}`);
     return where.join(' and ');
   }
 

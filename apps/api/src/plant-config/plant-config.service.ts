@@ -42,6 +42,7 @@ import {
   PlantTypeRequiredDocumentEntity,
 } from '../database/entities.js';
 import { TenantDb } from '../database/db-context.js';
+import { ComplianceService } from '../plants/compliance.service.js';
 
 /** Blank optional text is stored as null rather than an empty string. */
 const blankToNull = (value: unknown): unknown => (value === '' ? null : value);
@@ -252,7 +253,17 @@ export class PlantConfigService {
     private readonly tenantDb: TenantDb,
     private readonly audit: AuditService,
     private readonly clock: Clock,
+    private readonly compliance: ComplianceService,
   ) {}
+
+  /**
+   * Document type changes (expiry warning, archiving) and new mandatory
+   * documents can leave approved plant without valid documents (DOC-AC-01).
+   */
+  private async recheck(auth: CustomerAuth, key: ConfigKindKey): Promise<void> {
+    if (key === 'document-types')
+      await this.compliance.enforce(userActor(auth));
+  }
 
   private get db(): EntityManager {
     return this.tenantDb.manager;
@@ -339,6 +350,7 @@ export class PlantConfigService {
         before,
         after,
       );
+      await this.recheck(auth, key);
       return this.dto(key, updated);
     }
     return this.dto(key, row);
@@ -364,6 +376,7 @@ export class PlantConfigService {
         id,
         `${archived ? 'Archived' : 'Restored'} ${kind.label.toLowerCase()} ${kind.nameOf(row)}`,
       );
+      await this.recheck(auth, key);
     }
     return this.dto(key, await this.load(kind, id));
   }
@@ -433,6 +446,7 @@ export class PlantConfigService {
       before: { documents: names(current) },
       after: { documents: names(documentTypeIds) },
     });
+    if (added.length > 0) await this.compliance.enforce(userActor(auth));
     return (await this.dto('plant-types', type)) as PlantType;
   }
 

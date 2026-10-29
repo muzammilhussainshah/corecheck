@@ -5,7 +5,9 @@ import { POC_QUESTION_KEYS } from './poc.js';
 import {
   CLIENT_TYPES,
   CUSTOM_FIELD_TYPES,
+  DOCUMENT_STATES,
   PLANT_COMPANY_KINDS,
+  PLANT_COMPLIANCE_STATES,
   PLANT_OWNERSHIPS,
   PLANT_STATUSES,
   RESTRICTION_REASONS,
@@ -454,6 +456,8 @@ const plantFilters = {
   ownership: z.enum(PLANT_OWNERSHIPS).optional(),
   /** "archived" lists archived plant; otherwise archived plant is left out. */
   status: z.enum([...PLANT_STATUSES, 'archived']).optional(),
+  /** Standing against mandatory documents (the register's document filter). */
+  compliance: z.enum(PLANT_COMPLIANCE_STATES).optional(),
   sort: z.enum(PLANT_SORT_FIELDS).default('assetId'),
   order: sortOrder,
 };
@@ -497,18 +501,79 @@ export type RestrictPlantInput = z.input<typeof restrictPlantSchema>;
 
 /**
  * Returning restricted plant to service. An override puts plant back in use
- * despite an open restriction and needs a reason (PLC-007).
+ * despite missing or expired mandatory documents; it needs a reason and a
+ * review date, after which the restriction applies again (PLC-007, DOC-008).
  */
 export const returnToServiceSchema = z
   .object({
     note: optionalText('Note', 500),
     override: z.boolean().default(false),
+    reviewOn: z.union([z.literal(''), isoDate]).optional(),
   })
-  .refine((data) => !data.override || Boolean(data.note), {
-    path: ['note'],
-    message: 'Give the reason for the override.',
+  .superRefine((data, ctx) => {
+    if (!data.override) return;
+    if (!data.note)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['note'],
+        message: 'Give the reason for the override.',
+      });
+    if (!data.reviewOn)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['reviewOn'],
+        message: 'Choose the date the override must be reviewed by.',
+      });
   });
 export type ReturnToServiceInput = z.input<typeof returnToServiceSchema>;
+
+// -------------------------------------------------------------- documents
+
+const optionalDate = z
+  .union([z.literal(''), isoDate])
+  .optional()
+  .transform((value) => value || undefined);
+
+/** Fields sent with an uploaded document file (DOC-002). */
+const documentFields = {
+  reference: optionalText('Reference', 100),
+  issuedOn: optionalDate,
+  expiresOn: optionalDate,
+};
+
+const issuedBeforeExpiry = {
+  check: (data: { issuedOn?: string; expiresOn?: string }) =>
+    !data.issuedOn || !data.expiresOn || data.expiresOn >= data.issuedOn,
+  message: {
+    path: ['expiresOn'],
+    message: 'The expiry date must be on or after the issue date.',
+  },
+};
+
+export const uploadDocumentSchema = z
+  .object({ documentTypeId: requiredId('Document type'), ...documentFields })
+  .refine(issuedBeforeExpiry.check, issuedBeforeExpiry.message);
+export type UploadDocumentInput = z.input<typeof uploadDocumentSchema>;
+
+export const replaceDocumentSchema = z
+  .object(documentFields)
+  .refine(issuedBeforeExpiry.check, issuedBeforeExpiry.message);
+export type ReplaceDocumentInput = z.input<typeof replaceDocumentSchema>;
+
+export const rejectDocumentSchema = z.object({
+  reason: requiredText('Reason', 500),
+});
+export type RejectDocumentInput = z.input<typeof rejectDocumentSchema>;
+
+export const listDocumentsQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().max(100).optional(),
+  state: z.enum(DOCUMENT_STATES).exclude(['missing']).optional(),
+  documentTypeId: id.optional(),
+  siteId: id.optional(),
+  sort: z.enum(['expiresOn', 'uploadedAt', 'assetId']).default('expiresOn'),
+  order: sortOrder,
+});
+export type ListDocumentsQuery = z.input<typeof listDocumentsQuerySchema>;
 
 // ------------------------------------------------------------------ audit
 

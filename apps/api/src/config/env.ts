@@ -64,10 +64,52 @@ const envObject = z.object({
     .url('WEB_APP_URL must be a full URL, e.g. https://app.example.com.')
     .default('http://localhost:3100')
     .transform((url) => url.replace(/\/+$/, '')),
+
+  /**
+   * Where plant documents are kept: "local" writes under STORAGE_DIR
+   * (development and tests); "supabase" uses a private Supabase Storage
+   * bucket, required in production because a Render disk is wiped on deploy.
+   */
+  STORAGE_DRIVER: z.enum(['local', 'supabase']).default('local'),
+  SUPABASE_URL: z.url('SUPABASE_URL must be the project URL.').optional(),
+  /** Server-side key; never sent to a browser. */
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
+  /**
+   * How often to restrict approved plant whose mandatory documents have
+   * expired (DOC-AC-01). 0 turns the check off (tests).
+   */
+  COMPLIANCE_SWEEP_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(1440)
+    .default(60),
+  SUPABASE_STORAGE_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{1,62}$/, 'Use lower-case letters, digits and -.')
+    .default('corecheck-files'),
 });
 
 export const envSchema = envObject.superRefine((env, ctx) => {
+  if (env.STORAGE_DRIVER === 'supabase') {
+    for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] as const) {
+      if (!env[key])
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} is required when STORAGE_DRIVER is supabase.`,
+        });
+    }
+  }
   if (env.NODE_ENV !== 'production') return;
+  if (env.STORAGE_DRIVER !== 'supabase') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['STORAGE_DRIVER'],
+      message:
+        'STORAGE_DRIVER must be supabase in production: files on the server disk are lost on every deploy.',
+    });
+  }
   if (!env.COOKIE_SECURE) {
     ctx.addIssue({
       code: 'custom',

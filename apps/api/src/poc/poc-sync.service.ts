@@ -36,7 +36,10 @@ import {
   PocMutationEntity,
 } from '../database/entities.js';
 import { TenantDb } from '../database/db-context.js';
-import { detectImageType, stripImageMetadata } from './image-sanitiser.js';
+import {
+  detectImageType,
+  stripImageMetadata,
+} from '../common/image-sanitiser.js';
 
 type EvidenceFields = z.output<typeof pocEvidenceFieldsSchema>;
 
