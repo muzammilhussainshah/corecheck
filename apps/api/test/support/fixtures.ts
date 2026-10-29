@@ -58,6 +58,13 @@ export class ApiClient {
       .set('authorization', `Bearer ${this.token}`)
       .send(body);
   }
+
+  put(url: string, body: object) {
+    return this.http
+      .put(url)
+      .set('authorization', `Bearer ${this.token}`)
+      .send(body);
+  }
 }
 
 // --------------------------------------------------------------- staff

@@ -1,7 +1,9 @@
 import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import type {
   ClientType,
+  CustomFieldType,
   OrganisationStatus,
+  PlantCompanyKind,
   PocCheckStatus,
   PocQuestionKey,
   StaffRole,
@@ -293,6 +295,101 @@ export class PocMutationEntity {
   receivedAt!: Date;
 }
 
+// ------------------------------------------- plant configuration (M2)
+
+@Entity({ schema: SCHEMA, name: 'plant_types' })
+export class PlantTypeEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') name!: string;
+  @Column('text', { nullable: true }) description!: string | null;
+  @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'plant_categories' })
+export class PlantCategoryEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') name!: string;
+  @Column('text', { nullable: true }) description!: string | null;
+  @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'plant_companies' })
+export class PlantCompanyEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') kind!: PlantCompanyKind;
+  @Column('text') name!: string;
+  @Column('text', { nullable: true }) contactName!: string | null;
+  @Column('text', { nullable: true }) contactPhone!: string | null;
+  @Column('text', { nullable: true }) contactEmail!: string | null;
+  @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'plant_custom_fields' })
+export class PlantCustomFieldEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') label!: string;
+  @Column('text') fieldType!: CustomFieldType;
+  @Column('jsonb') options!: string[];
+  @Column('boolean') required!: boolean;
+  @Column('integer') sortOrder!: number;
+  @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'meter_types' })
+export class MeterTypeEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') name!: string;
+  @Column('text') unit!: string;
+  @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'document_types' })
+export class DocumentTypeEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') name!: string;
+  @Column('text', { nullable: true }) description!: string | null;
+  @Column('boolean') hasExpiry!: boolean;
+  @Column('integer') warningDays!: number;
+  @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'plant_type_required_documents' })
+export class PlantTypeRequiredDocumentEntity {
+  @PrimaryColumn('uuid') plantTypeId!: string;
+  @PrimaryColumn('uuid') documentTypeId!: string;
+  @Column('uuid') orgId!: string;
+}
+
 export const ENTITIES = [
   OrganisationEntity,
   RoleEntity,
@@ -313,4 +410,11 @@ export const ENTITIES = [
   PocAnswerEntity,
   PocEvidenceEntity,
   PocMutationEntity,
+  PlantTypeEntity,
+  PlantCategoryEntity,
+  PlantCompanyEntity,
+  PlantCustomFieldEntity,
+  MeterTypeEntity,
+  DocumentTypeEntity,
+  PlantTypeRequiredDocumentEntity,
 ];

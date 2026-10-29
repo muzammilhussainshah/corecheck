@@ -12,6 +12,7 @@ import { AppConfigModule } from './config/config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { OrganisationModule } from './organisation/organisation.module.js';
+import { PlantConfigModule } from './plant-config/plant-config.module.js';
 import { PlatformModule } from './platform/platform.module.js';
 import { PocModule } from './poc/poc.module.js';
 import { RolesModule } from './roles/roles.module.js';
@@ -36,6 +37,7 @@ import { UsersModule } from './users/users.module.js';
     UsersModule,
     RolesModule,
     OrganisationModule,
+    PlantConfigModule,
     PocModule,
   ],
   providers: [

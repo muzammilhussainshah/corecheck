@@ -4,7 +4,9 @@ import type { PocCheckStatus, PocQuestionKey } from './poc.js';
 import type { StandardRoleKey } from './roles.js';
 import type {
   ClientType,
+  CustomFieldType,
   OrganisationStatus,
+  PlantCompanyKind,
   StaffRole,
   StaffStatus,
   UserStatus,
@@ -176,6 +178,62 @@ export interface Discipline {
   name: string;
   archivedAt: string | null;
   memberCount: number;
+}
+
+// ---------------------------------------------------- plant configuration
+
+export interface PlantType {
+  id: string;
+  name: string;
+  description: string | null;
+  archivedAt: string | null;
+  /** Document types a plant of this type must hold (DOC-001). */
+  requiredDocumentTypeIds: string[];
+}
+
+export interface PlantCategory {
+  id: string;
+  name: string;
+  description: string | null;
+  archivedAt: string | null;
+}
+
+export interface PlantCompany {
+  id: string;
+  kind: PlantCompanyKind;
+  name: string;
+  contactName: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  archivedAt: string | null;
+}
+
+export interface CustomField {
+  id: string;
+  label: string;
+  fieldType: CustomFieldType;
+  /** The choices of a choice-list field; empty for other types. */
+  options: string[];
+  required: boolean;
+  sortOrder: number;
+  archivedAt: string | null;
+}
+
+export interface MeterType {
+  id: string;
+  name: string;
+  unit: string;
+  archivedAt: string | null;
+}
+
+export interface DocumentType {
+  id: string;
+  name: string;
+  description: string | null;
+  hasExpiry: boolean;
+  /** Days before expiry that a document shows Approaching Expiry (DOC-005). */
+  warningDays: number;
+  archivedAt: string | null;
 }
 
 // ------------------------------------------------------------------ audit

@@ -22,6 +22,15 @@ export class ZodValidationPipe<
   }
 }
 
+/**
+ * Validates a body whose schema is only known inside the handler, e.g. one
+ * route serving several configuration lists.
+ */
+export const parseWith = <TSchema extends z.ZodType>(
+  schema: TSchema,
+  value: unknown,
+): z.output<TSchema> => new ZodValidationPipe(schema).transform(value);
+
 export const ValidBody = (schema: z.ZodType) =>
   Body(new ZodValidationPipe(schema));
 

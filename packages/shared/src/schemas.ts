@@ -2,7 +2,13 @@ import { z } from 'zod';
 import { isPermissionCode } from './permissions.js';
 import { newPinProblem, PIN_PATTERN } from './pin.js';
 import { POC_QUESTION_KEYS } from './poc.js';
-import { CLIENT_TYPES, STAFF_ROLES, USER_STATUSES } from './statuses.js';
+import {
+  CLIENT_TYPES,
+  CUSTOM_FIELD_TYPES,
+  PLANT_COMPANY_KINDS,
+  STAFF_ROLES,
+  USER_STATUSES,
+} from './statuses.js';
 
 /**
  * Request validation shared by the API (which enforces it) and the apps
@@ -229,6 +235,123 @@ export const createDisciplineSchema = z.object({
 });
 export type CreateDisciplineInput = z.input<typeof createDisciplineSchema>;
 export const updateDisciplineSchema = createDisciplineSchema;
+
+// ---------------------------------------------------- plant configuration
+
+export const createPlantTypeSchema = z.object({
+  name: requiredText('Plant type name', 120),
+  description: optionalText('Description', 300),
+});
+export type CreatePlantTypeInput = z.input<typeof createPlantTypeSchema>;
+export const updatePlantTypeSchema = createPlantTypeSchema.partial();
+export type UpdatePlantTypeInput = z.input<typeof updatePlantTypeSchema>;
+
+export const createPlantCategorySchema = z.object({
+  name: requiredText('Category name', 120),
+  description: optionalText('Description', 300),
+});
+export type CreatePlantCategoryInput = z.input<
+  typeof createPlantCategorySchema
+>;
+export const updatePlantCategorySchema = createPlantCategorySchema.partial();
+export type UpdatePlantCategoryInput = z.input<
+  typeof updatePlantCategorySchema
+>;
+
+const plantCompanyFields = {
+  name: requiredText('Company name', 160),
+  contactName: optionalText('Contact name', 100),
+  contactPhone: optionalText('Telephone', 40),
+  contactEmail: z.union([z.literal(''), email]).optional(),
+};
+
+export const createPlantCompanySchema = z.object({
+  kind: z.enum(PLANT_COMPANY_KINDS, { error: 'Choose owner or hire company.' }),
+  ...plantCompanyFields,
+});
+export type CreatePlantCompanyInput = z.input<typeof createPlantCompanySchema>;
+/** The kind is fixed once created: plant already point at it as owned or hired. */
+export const updatePlantCompanySchema = z.object(plantCompanyFields).partial();
+export type UpdatePlantCompanyInput = z.input<typeof updatePlantCompanySchema>;
+
+/** The choices of a choice-list custom field: trimmed, unique, non-empty. */
+const customFieldOptions = z
+  .array(
+    z
+      .string()
+      .trim()
+      .min(1, 'A choice cannot be blank.')
+      .max(80, 'Choices must be 80 characters or fewer.'),
+  )
+  .max(50, 'Use 50 choices or fewer.')
+  .refine(
+    (options) =>
+      new Set(options.map((option) => option.toLowerCase())).size ===
+      options.length,
+    { message: 'Each choice must be different.' },
+  );
+
+export const createCustomFieldSchema = z
+  .object({
+    label: requiredText('Field name', 80),
+    fieldType: z.enum(CUSTOM_FIELD_TYPES, { error: 'Choose a field type.' }),
+    options: customFieldOptions.default([]),
+    required: z.boolean().default(false),
+    sortOrder: z.number().int().min(0).max(1000).default(0),
+  })
+  .refine((data) => data.fieldType !== 'select' || data.options.length > 0, {
+    path: ['options'],
+    message: 'Add at least one choice.',
+  })
+  .transform((data) =>
+    data.fieldType === 'select' ? data : { ...data, options: [] },
+  );
+export type CreateCustomFieldInput = z.input<typeof createCustomFieldSchema>;
+
+/** The field type is fixed once created, so stored values always match it. */
+export const updateCustomFieldSchema = z.object({
+  label: requiredText('Field name', 80).optional(),
+  options: customFieldOptions.optional(),
+  required: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(1000).optional(),
+});
+export type UpdateCustomFieldInput = z.input<typeof updateCustomFieldSchema>;
+
+export const createMeterTypeSchema = z.object({
+  name: requiredText('Meter name', 80),
+  unit: requiredText('Unit', 20),
+});
+export type CreateMeterTypeInput = z.input<typeof createMeterTypeSchema>;
+export const updateMeterTypeSchema = createMeterTypeSchema.partial();
+export type UpdateMeterTypeInput = z.input<typeof updateMeterTypeSchema>;
+
+const warningDays = z
+  .number({ error: 'Enter the number of days.' })
+  .int('Use a whole number of days.')
+  .min(0, 'Use 0 days or more.')
+  .max(365, 'Use 365 days or fewer.');
+
+export const createDocumentTypeSchema = z.object({
+  name: requiredText('Document type name', 120),
+  description: optionalText('Description', 300),
+  hasExpiry: z.boolean().default(true),
+  warningDays: warningDays.default(30),
+});
+export type CreateDocumentTypeInput = z.input<typeof createDocumentTypeSchema>;
+export const updateDocumentTypeSchema = z.object({
+  name: requiredText('Document type name', 120).optional(),
+  description: optionalText('Description', 300),
+  hasExpiry: z.boolean().optional(),
+  warningDays: warningDays.optional(),
+});
+export type UpdateDocumentTypeInput = z.input<typeof updateDocumentTypeSchema>;
+
+export const setRequiredDocumentsSchema = z.object({
+  documentTypeIds: idList,
+});
+export type SetRequiredDocumentsInput = z.input<
+  typeof setRequiredDocumentsSchema
+>;
 
 // ------------------------------------------------------------------ audit
 

@@ -22,6 +22,13 @@ const UNIQUE_MESSAGES: Record<string, string> = {
   teams_org_name_key: 'A team with this name already exists.',
   disciplines_org_name_key: 'A discipline with this name already exists.',
   platform_staff_email_key: 'A staff member with this email already exists.',
+  plant_types_org_name_key: 'A plant type with this name already exists.',
+  plant_categories_org_name_key: 'A category with this name already exists.',
+  plant_companies_org_kind_name_key: 'A company with this name already exists.',
+  plant_custom_fields_org_label_key:
+    'A custom field with this name already exists.',
+  meter_types_org_name_key: 'A meter type with this name already exists.',
+  document_types_org_name_key: 'A document type with this name already exists.',
 };
 
 const STATUS_CODES: Partial<Record<number, ErrorCode>> = {

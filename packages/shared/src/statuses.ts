@@ -53,3 +53,25 @@ export type StaffStatus = (typeof STAFF_STATUSES)[number];
 /** Which app a customer session belongs to; drives session lifetime. */
 export const CLIENT_TYPES = ['web', 'mobile'] as const;
 export type ClientType = (typeof CLIENT_TYPES)[number];
+
+// ------------------------------------------------- plant configuration
+
+/** Owned plant names its owner; hired plant names its hire company (PLT-006). */
+export const PLANT_COMPANY_KINDS = ['owner', 'hire_company'] as const;
+export type PlantCompanyKind = (typeof PLANT_COMPANY_KINDS)[number];
+
+export const PLANT_COMPANY_KIND_LABELS: Record<PlantCompanyKind, string> = {
+  owner: 'Owner',
+  hire_company: 'Hire company',
+};
+
+/** Value types an Admin can give a plant custom field (PLT-008). */
+export const CUSTOM_FIELD_TYPES = ['text', 'number', 'date', 'select'] as const;
+export type CustomFieldType = (typeof CUSTOM_FIELD_TYPES)[number];
+
+export const CUSTOM_FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
+  text: 'Text',
+  number: 'Number',
+  date: 'Date',
+  select: 'Choice list',
+};

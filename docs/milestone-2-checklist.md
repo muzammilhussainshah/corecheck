@@ -1,0 +1,121 @@
+# Milestone 2 — Plant Reception and Compliance: live checklist
+
+Har kaam mukammal hone par yahan `[x]` lagta hai. `🔄` = abhi chal raha hai.
+Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
+
+**Abhi:** Phase 1 — Manage ki web screens 🔄
+
+---
+
+## Phase 1 — Admin configuration (Manage section)
+
+- [x] Database: plant types, categories, owners/hire companies, custom fields, meter types, document types, mandatory documents (RLS ke saath)
+- [x] API: har list ka add / edit / archive / restore + audit
+- [x] Permissions: `plant_config.manage`, `meters.configure`, `documents.configure` server par enforce
+- [ ] Web: Manage mein Plant types screen
+- [ ] Web: Plant categories screen
+- [ ] Web: Owners / hire companies screen
+- [ ] Web: Custom fields screen (text, number, date, dropdown; required/optional)
+- [ ] Web: Meter types screen (naam + unit)
+- [ ] Web: Document types screen (expiry hai ya nahi, warning kitne din pehle)
+- [ ] Web: Mandatory documents by plant type
+- [x] Tests: configuration API (permissions, duplicates, archive, tenant isolation)
+
+## Phase 2 — Plant register aur plant record
+
+- [ ] Database: plants table (RLS), System Asset ID unique per organisation, Plant No./Serial non-unique
+- [ ] System Asset ID auto-generate (`PLT-000001`) ya manual; duplicate block (PLT-002/003)
+- [ ] Plant No. / Serial duplicate par warning + matching plants (PLT-004)
+- [ ] Required fields validation (PLT-006)
+- [ ] Custom field values save/validate
+- [ ] Lifecycle: Pending Reception → Awaiting Approval → Approved/Online / Restricted/Offline → Archived (PLC-001)
+- [ ] Restriction reasons: Quarantined, Not in Use, Off-hired (PLC-002)
+- [ ] Operative apna Pending plant edit kar sake; submit ke baad lock (PLC-003/004)
+- [ ] Manual status change / override: reason zaroori, original audit mein (PLC-007)
+- [ ] Archive / restore (PLC-006)
+- [ ] Site scope: user sirf apni sites ke plant dekhe/badle
+- [ ] Web: Plant Register list (columns, search, filters, pagination)
+- [ ] Web: Add plant form
+- [ ] Web: Plant profile (Overview, Reception, Documents, Meter readings, Audit; Checks/Defects khali tabs)
+- [ ] Register export Excel / CSV (PLR-004)
+- [ ] QR code: random token, login + scope zaroori (PLT-AC-04)
+- [ ] QR labels PDF print (ek ya kai plants)
+- [ ] Tests: plant API + lifecycle + scope + duplicate Asset ID
+
+## Phase 3 — Documents aur compliance
+
+- [ ] File storage: Supabase Storage private bucket (local dev ke liye disk)
+- [ ] Upload: type, reference, issue/expiry date, file (PDF/JPG/PNG, 20 MB, asal type check)
+- [ ] Download sirf API se, scope check ke baad
+- [ ] Verify / Reject (verifier + waqt record)
+- [ ] Status: Missing, Awaiting Verification, Valid, Approaching Expiry, Expired, Rejected, Archived
+- [ ] Replace: purana version + verification history mehfooz
+- [ ] Compliance engine: missing/expired mandatory document → approval block + Restricted/Offline
+- [ ] Har raat expiry check (plants restrict + audit)
+- [ ] Document restriction override: reason + review date, original mehfooz
+- [ ] Web: Plant profile ka Documents tab (upload, verify, replace, history)
+- [ ] Tests: documents + compliance + file tenant isolation
+
+## Phase 4 — Reception
+
+- [ ] Reception template: Draft → Published (immutable version), naya version on edit
+- [ ] Sawal ki types: yes/no, pass/fail, text, number, photo/file, meter reading
+- [ ] Sawal settings: mandatory, comment zaroori, photo zaroori, fail par Offline
+- [ ] Template setting: automatic ya manual approval
+- [ ] Web: Template builder (Manage)
+- [ ] Assign: Supervisor/Manager/Admin plant par template assign kare
+- [ ] Reception bharna: draft save, photos, meter reading, submit
+- [ ] Auto approval → Approved/Online (sab rules pass)
+- [ ] Manual approval → Awaiting Approval → approve / return with comment
+- [ ] Offline trigger fail ya document missing → Restricted/Offline
+- [ ] Template version + har jawab + kis ne diya + evidence mehfooz
+- [ ] Web: Reception screen (plant profile se)
+- [ ] Tests: reception journey (auto, manual, return, offline trigger, missing document)
+
+## Phase 5 — Meter readings
+
+- [ ] Plant par kai meter types
+- [ ] Reading: reception se ya manual (value, unit, waqt, source, user)
+- [ ] Correction: reason zaroori, asli value mehfooz
+- [ ] Web: Plant profile ka Meter readings tab (history)
+- [ ] Tests: readings + corrections
+
+## Phase 6 — Plant import
+
+- [ ] Template download (Excel/CSV) valid values ke saath
+- [ ] Upload → row-level preview (missing, invalid, duplicate Asset ID block, Plant No./Serial warning)
+- [ ] Sahi rows import; galat rows app mein theek karke dobara validate
+- [ ] Error report download
+- [ ] Import record: kis ne, kab, file, row outcomes, bane plant IDs
+- [ ] Sirf naye plant (update/merge nahi)
+- [ ] Web: Import wizard
+- [ ] Tests: import
+
+## Phase 7 — Testing aur delivery
+
+- [ ] Tenant isolation tests mein saare naye tables + files
+- [ ] Browser test: plant banao → document → reception → approve
+- [ ] Demo data: plants, documents, reception template
+- [ ] Design doc update + Milestone 2 acceptance evidence
+- [ ] Lint, typecheck, saare tests pass
+- [ ] Staging par deploy + check
+
+---
+
+## Acceptance criteria (ITDR)
+
+- [ ] Operative Pending Reception plant bana kar submit kar sake
+- [ ] Plant lifecycle FRD ke mutabiq
+- [ ] Duplicate System Asset ID block
+- [ ] Plant Number / Serial Number par sirf warning
+- [ ] Missing/expired mandatory document approval rokta hai
+- [ ] Kamyab reception → Online; configured failure → Offline
+- [ ] Plant workflow actions audit mein
+- [ ] Import: preview, validation, corrections, error report
+
+---
+
+## Progress log
+
+- Plan approve hua; checklist bani. Phase 1 shuru.
+- Phase 1 backend mukammal: 7 nayi tables (RLS ke saath), `/config/...` API, duplicate naam ke saaf messages, audit, 9 integration tests pass.
