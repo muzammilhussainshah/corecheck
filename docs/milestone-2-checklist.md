@@ -3,7 +3,7 @@
 Har kaam mukammal hone par yahan `[x]` lagta hai. `🔄` = abhi chal raha hai.
 Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
-**Abhi:** Phase 2 — Plant register aur plant record 🔄
+**Abhi:** Phase 2 — Plant Register ki web screens (list, add, profile, export, QR) 🔄
 
 ---
 
@@ -23,24 +23,24 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
 ## Phase 2 — Plant register aur plant record
 
-- [ ] Database: plants table (RLS), System Asset ID unique per organisation, Plant No./Serial non-unique
-- [ ] System Asset ID auto-generate (`PLT-000001`) ya manual; duplicate block (PLT-002/003)
-- [ ] Plant No. / Serial duplicate par warning + matching plants (PLT-004)
-- [ ] Required fields validation (PLT-006)
-- [ ] Custom field values save/validate
-- [ ] Lifecycle: Pending Reception → Awaiting Approval → Approved/Online / Restricted/Offline → Archived (PLC-001)
-- [ ] Restriction reasons: Quarantined, Not in Use, Off-hired (PLC-002)
-- [ ] Operative apna Pending plant edit kar sake; submit ke baad lock (PLC-003/004)
-- [ ] Manual status change / override: reason zaroori, original audit mein (PLC-007)
-- [ ] Archive / restore (PLC-006)
-- [ ] Site scope: user sirf apni sites ke plant dekhe/badle
+- [x] Database: plants table (RLS), System Asset ID unique per organisation, Plant No./Serial non-unique
+- [x] System Asset ID auto-generate (`PLT-000001`) ya manual; duplicate block (PLT-002/003)
+- [x] Plant No. / Serial duplicate par warning + matching plants (PLT-004)
+- [x] Required fields validation (PLT-006)
+- [x] Custom field values save/validate
+- [x] Lifecycle: Pending Reception → Awaiting Approval → Approved/Online / Restricted/Offline → Archived (PLC-001)
+- [x] Restriction reasons: Quarantined, Not in Use, Off-hired (PLC-002)
+- [x] Operative apna Pending plant edit kar sake; submit ke baad lock (PLC-003/004)
+- [x] Manual status change / override: reason zaroori, original audit mein (PLC-007)
+- [x] Archive / restore (PLC-006)
+- [x] Site scope: user sirf apni sites ke plant dekhe/badle
 - [ ] Web: Plant Register list (columns, search, filters, pagination)
 - [ ] Web: Add plant form
 - [ ] Web: Plant profile (Overview, Reception, Documents, Meter readings, Audit; Checks/Defects khali tabs)
 - [ ] Register export Excel / CSV (PLR-004)
 - [ ] QR code: random token, login + scope zaroori (PLT-AC-04)
 - [ ] QR labels PDF print (ek ya kai plants)
-- [ ] Tests: plant API + lifecycle + scope + duplicate Asset ID
+- [x] Tests: plant API + lifecycle + scope + duplicate Asset ID
 
 ## Phase 3 — Documents aur compliance
 
@@ -122,3 +122,4 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - Phase 1 web mukammal: Manage mein "Plant" group ke 6 screens (types, categories, companies, custom fields, meter types, document types) + mandatory documents. Browser mein check kiya.
 - Sath mein fix: duplicate naam ka error ab form ke field ke neeche dikhta hai (pehle sirf 3 second ka toast tha) — Sites, Teams, Roles waghera par bhi.
 - **Phase 1 mukammal ✅**
+- Phase 2 backend mukammal: plants table (RLS), Asset ID generate/duplicate block, Plant No./Serial warnings, custom values, restrict/return to service, archive, history, Excel/CSV export (formula-injection se mehfooz), QR token + labels PDF. 14 plant tests + naya test jo har org table par RLS check karta hai.

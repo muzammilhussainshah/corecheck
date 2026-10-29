@@ -13,6 +13,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { OrganisationModule } from './organisation/organisation.module.js';
 import { PlantConfigModule } from './plant-config/plant-config.module.js';
+import { PlantsModule } from './plants/plants.module.js';
 import { PlatformModule } from './platform/platform.module.js';
 import { PocModule } from './poc/poc.module.js';
 import { RolesModule } from './roles/roles.module.js';
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module.js';
     RolesModule,
     OrganisationModule,
     PlantConfigModule,
+    PlantsModule,
     PocModule,
   ],
   providers: [

@@ -7,6 +7,9 @@ import type {
   CustomFieldType,
   OrganisationStatus,
   PlantCompanyKind,
+  PlantOwnership,
+  PlantStatus,
+  RestrictionReason,
   StaffRole,
   StaffStatus,
   UserStatus,
@@ -234,6 +237,68 @@ export interface DocumentType {
   /** Days before expiry that a document shows Approaching Expiry (DOC-005). */
   warningDays: number;
   archivedAt: string | null;
+}
+
+// ------------------------------------------------------------------ plant
+
+/** A row of the Plant Register (PLR-001). */
+export interface PlantSummary {
+  id: string;
+  /** System Asset ID: the one unique plant identifier (PLT-001). */
+  assetId: string;
+  plantNumber: string | null;
+  serialNumber: string | null;
+  name: string;
+  plantType: IdName;
+  category: IdName | null;
+  make: string | null;
+  model: string | null;
+  ownership: PlantOwnership;
+  company: IdName;
+  site: IdName;
+  area: IdName | null;
+  status: PlantStatus;
+  restrictionReason: RestrictionReason | null;
+  archivedAt: string | null;
+  updatedAt: string;
+}
+
+/** A custom field value: text, date (YYYY-MM-DD), number or a choice. */
+export type CustomValue = string | number;
+
+export interface PlantDetail extends PlantSummary {
+  disciplines: IdName[];
+  /** Keyed by custom field id (PLT-008). */
+  customValues: Record<string, CustomValue>;
+  statusNote: string | null;
+  statusChangedAt: string;
+  statusChangedBy: string | null;
+  createdAt: string;
+  createdBy: string;
+  /** What the signed-in user may do with this plant. */
+  capabilities: {
+    edit: boolean;
+    /** Change the System Asset ID or move the plant to another site. */
+    editIdentifiers: boolean;
+    archive: boolean;
+    restrict: boolean;
+    returnToService: boolean;
+    printQr: boolean;
+  };
+}
+
+/** Saved plant, with any possible duplicates to show the user (PLT-004). */
+export interface PlantSaved {
+  plant: PlantDetail;
+  duplicates: PlantDuplicates;
+}
+
+/** Plant sharing a Plant Number or Serial Number; a warning, never a block. */
+export interface PlantDuplicates {
+  plantNumber: PlantSummary[];
+  serialNumber: PlantSummary[];
+  /** Further matches at sites the user cannot see. */
+  outsideScope: number;
 }
 
 // ------------------------------------------------------------------ audit

@@ -75,3 +75,54 @@ export const CUSTOM_FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   date: 'Date',
   select: 'Choice list',
 };
+
+// ------------------------------------------------------------------ plant
+
+/**
+ * The primary plant lifecycle (PLC-001). Archived is shown as a status too,
+ * but is held separately so restoring returns plant to where it was.
+ */
+export const PLANT_STATUSES = [
+  'pending_reception',
+  'awaiting_approval',
+  'approved',
+  'restricted',
+] as const;
+export type PlantStatus = (typeof PLANT_STATUSES)[number];
+
+export const PLANT_STATUS_LABELS: Record<PlantStatus | 'archived', string> = {
+  pending_reception: 'Pending Reception',
+  awaiting_approval: 'Awaiting Approval',
+  approved: 'Approved/Online',
+  restricted: 'Restricted/Offline',
+  archived: 'Archived',
+};
+
+/** Operational classifications of restricted plant, never statuses (PLC-002). */
+export const RESTRICTION_REASONS = [
+  'quarantined',
+  'not_in_use',
+  'off_hired',
+] as const;
+export type RestrictionReason = (typeof RESTRICTION_REASONS)[number];
+
+export const RESTRICTION_REASON_LABELS: Record<RestrictionReason, string> = {
+  quarantined: 'Quarantined',
+  not_in_use: 'Not in Use',
+  off_hired: 'Off-hired',
+};
+
+export const PLANT_OWNERSHIPS = ['owned', 'hired'] as const;
+export type PlantOwnership = (typeof PLANT_OWNERSHIPS)[number];
+
+export const PLANT_OWNERSHIP_LABELS: Record<PlantOwnership, string> = {
+  owned: 'Owned',
+  hired: 'Hired',
+};
+
+/** The company kind each ownership type names (PLT-006). */
+export const OWNERSHIP_COMPANY_KIND: Record<PlantOwnership, PlantCompanyKind> =
+  {
+    owned: 'owner',
+    hired: 'hire_company',
+  };

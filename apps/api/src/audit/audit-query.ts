@@ -29,15 +29,23 @@ interface AuditRow {
  * A page of audit history, newest first. Row-level security already limits
  * the rows to what the calling role may see (the organisation's tenant events,
  * or platform events for staff); `timeZone` decides which calendar day the
- * from/to filters mean.
+ * from/to filters mean. `entity` narrows it to one record's history, such as
+ * a plant's (PLR-003).
  */
 export const listAuditEvents = async (
   manager: EntityManager,
   query: AuditQuery,
   timeZone: string,
+  entity?: { type: string; id: string },
 ): Promise<Paginated<AuditEvent>> => {
   const params = new SqlParams();
   const where: string[] = [];
+
+  if (entity) {
+    where.push(
+      `e.entity_type = ${params.add(entity.type)} and e.entity_id = ${params.add(entity.id)}`,
+    );
+  }
 
   if (query.category) {
     where.push(

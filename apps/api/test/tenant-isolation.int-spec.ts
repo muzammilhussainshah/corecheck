@@ -164,6 +164,22 @@ describe('Tenant isolation (TEN-002, TEN-004, NFR-001)', () => {
     });
   });
 
+  it('has row-level security on every table that holds organisation data', async () => {
+    // Any new table with an org_id column is covered without listing it here.
+    const unprotected = (await t.dataSource.query(
+      `select c.relname as table
+         from pg_class c
+         join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'corecheck' and c.relkind = 'r'
+          and not c.relrowsecurity
+          and exists (select 1 from information_schema.columns col
+                       where col.table_schema = 'corecheck'
+                         and col.table_name = c.relname
+                         and col.column_name = 'org_id')`,
+    )) as Array<{ table: string }>;
+    expect(unprotected).toEqual([]);
+  });
+
   it('gives the internal-staff database role no access to customer tables (IAD-011, IAD-AC-04)', async () => {
     for (const table of [
       'users',
@@ -172,6 +188,10 @@ describe('Tenant isolation (TEN-002, TEN-004, NFR-001)', () => {
       'teams',
       'disciplines',
       'poc_checks',
+      'plants',
+      'plant_types',
+      'plant_companies',
+      'document_types',
     ]) {
       await t.dataSource.transaction(async (manager) => {
         await manager.query(

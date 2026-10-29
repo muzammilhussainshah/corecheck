@@ -2,8 +2,12 @@ import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import type {
   ClientType,
   CustomFieldType,
+  CustomValue,
   OrganisationStatus,
   PlantCompanyKind,
+  PlantOwnership,
+  PlantStatus,
+  RestrictionReason,
   PocCheckStatus,
   PocQuestionKey,
   StaffRole,
@@ -390,6 +394,49 @@ export class PlantTypeRequiredDocumentEntity {
   @Column('uuid') orgId!: string;
 }
 
+// ------------------------------------------------------------ plant (M2)
+
+@Entity({ schema: SCHEMA, name: 'plants' })
+export class PlantEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') assetId!: string;
+  @Column('text', { nullable: true }) plantNumber!: string | null;
+  @Column('text', { nullable: true }) serialNumber!: string | null;
+  @Column('text') name!: string;
+  @Column('uuid') plantTypeId!: string;
+  @Column('uuid', { nullable: true }) categoryId!: string | null;
+  @Column('text', { nullable: true }) make!: string | null;
+  @Column('text', { nullable: true }) model!: string | null;
+  @Column('text') ownership!: PlantOwnership;
+  @Column('uuid') companyId!: string;
+  @Column('uuid') siteId!: string;
+  @Column('uuid', { nullable: true }) areaId!: string | null;
+  @Column('jsonb') customValues!: Record<string, CustomValue>;
+  @Column('text') status!: PlantStatus;
+  @Column('text', { nullable: true })
+  restrictionReason!: RestrictionReason | null;
+  @Column('text', { nullable: true }) statusNote!: string | null;
+  @Column('timestamptz') statusChangedAt!: Date;
+  @Column('uuid', { nullable: true }) statusChangedBy!: string | null;
+  @Column('timestamptz', { nullable: true }) approvedAt!: Date | null;
+  @Column('uuid', { nullable: true }) approvedBy!: string | null;
+  @Column('text') qrToken!: string;
+  @Column('uuid') createdBy!: string;
+  @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'plant_disciplines' })
+export class PlantDisciplineEntity {
+  @PrimaryColumn('uuid') plantId!: string;
+  @PrimaryColumn('uuid') disciplineId!: string;
+  @Column('uuid') orgId!: string;
+}
+
 export const ENTITIES = [
   OrganisationEntity,
   RoleEntity,
@@ -417,4 +464,6 @@ export const ENTITIES = [
   MeterTypeEntity,
   DocumentTypeEntity,
   PlantTypeRequiredDocumentEntity,
+  PlantEntity,
+  PlantDisciplineEntity,
 ];

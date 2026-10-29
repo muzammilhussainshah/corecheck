@@ -6,6 +6,9 @@ import {
   CLIENT_TYPES,
   CUSTOM_FIELD_TYPES,
   PLANT_COMPANY_KINDS,
+  PLANT_OWNERSHIPS,
+  PLANT_STATUSES,
+  RESTRICTION_REASONS,
   STAFF_ROLES,
   USER_STATUSES,
 } from './statuses.js';
@@ -352,6 +355,160 @@ export const setRequiredDocumentsSchema = z.object({
 export type SetRequiredDocumentsInput = z.input<
   typeof setRequiredDocumentsSchema
 >;
+
+// ------------------------------------------------------------------ plant
+
+/** Letters and digits, with . _ - / and spaces between them. */
+export const ASSET_ID_PATTERN =
+  /^[A-Za-z0-9](?:[A-Za-z0-9._\-/ ]*[A-Za-z0-9])?$/;
+
+/** An optional System Asset ID; blank means "generate one" (PLT-002). */
+const assetIdField = z
+  .string()
+  .trim()
+  .max(40, 'System Asset ID must be 40 characters or fewer.')
+  .refine((value) => value === '' || ASSET_ID_PATTERN.test(value), {
+    message: 'Use letters, digits and . _ - / only.',
+  })
+  .optional()
+  .transform((value) => value || undefined);
+
+/** An optional id from a form: blank becomes undefined. */
+const optionalId = z
+  .union([z.literal(''), id])
+  .nullable()
+  .optional()
+  .transform((value) => value || undefined);
+
+/** An id that may be cleared on edit: blank or null clears it. */
+const clearableId = z
+  .union([z.literal(''), id])
+  .nullable()
+  .optional()
+  .transform((value) => (value === '' ? null : value));
+
+/** Custom field values keyed by field id; the API checks them per field. */
+const customValues = z.record(
+  z.uuid('Invalid custom field.'),
+  z.union([
+    z.string().trim().max(500, 'Use 500 characters or fewer.'),
+    z.number().finite(),
+  ]),
+);
+
+const plantFields = {
+  plantNumber: optionalText('Plant Number', 60),
+  serialNumber: optionalText('Serial Number', 80),
+  name: requiredText('Equipment name', 160),
+  plantTypeId: requiredId('Plant type'),
+  make: optionalText('Make', 80),
+  model: optionalText('Model', 80),
+  ownership: z.enum(PLANT_OWNERSHIPS, { error: 'Choose owned or hired.' }),
+  companyId: requiredId('Owner or hire company'),
+  siteId: requiredId('Site'),
+  disciplineIds: idList,
+};
+
+/** Registering plant (PLT-006): the required fields plus anything known. */
+export const createPlantSchema = z.object({
+  ...plantFields,
+  assetId: assetIdField,
+  categoryId: optionalId,
+  areaId: optionalId,
+  disciplineIds: idList.default([]),
+  customValues: customValues.default({}),
+});
+export type CreatePlantInput = z.input<typeof createPlantSchema>;
+
+export const updatePlantSchema = z
+  .object({
+    ...plantFields,
+    assetId: z
+      .string()
+      .trim()
+      .min(1, 'System Asset ID is required.')
+      .max(40, 'System Asset ID must be 40 characters or fewer.')
+      .regex(ASSET_ID_PATTERN, 'Use letters, digits and . _ - / only.'),
+    categoryId: clearableId,
+    areaId: clearableId,
+    customValues,
+  })
+  .partial();
+export type UpdatePlantInput = z.input<typeof updatePlantSchema>;
+
+export const PLANT_SORT_FIELDS = [
+  'assetId',
+  'name',
+  'status',
+  'site',
+  'type',
+  'updatedAt',
+] as const;
+
+const plantFilters = {
+  search: z.string().trim().max(100).optional(),
+  siteId: id.optional(),
+  plantTypeId: id.optional(),
+  categoryId: id.optional(),
+  companyId: id.optional(),
+  ownership: z.enum(PLANT_OWNERSHIPS).optional(),
+  /** "archived" lists archived plant; otherwise archived plant is left out. */
+  status: z.enum([...PLANT_STATUSES, 'archived']).optional(),
+  sort: z.enum(PLANT_SORT_FIELDS).default('assetId'),
+  order: sortOrder,
+};
+
+export const listPlantsQuerySchema = paginationQuerySchema.extend(plantFilters);
+export type ListPlantsQuery = z.input<typeof listPlantsQuerySchema>;
+
+export const exportPlantsQuerySchema = z.object({
+  ...plantFilters,
+  format: z.enum(['xlsx', 'csv']).default('xlsx'),
+});
+export type ExportPlantsQuery = z.input<typeof exportPlantsQuerySchema>;
+
+/** Labels for chosen plant (ids, comma separated) or for a filtered list. */
+export const plantQrLabelsQuerySchema = z.object({
+  ...plantFilters,
+  ids: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value ? [...new Set(value.split(',').filter(Boolean))] : undefined,
+    )
+    .pipe(z.array(id).max(500).optional()),
+});
+export type PlantQrLabelsQuery = z.input<typeof plantQrLabelsQuerySchema>;
+
+export const plantDuplicatesQuerySchema = z.object({
+  plantNumber: z.string().trim().max(60).optional(),
+  serialNumber: z.string().trim().max(80).optional(),
+  /** The plant being edited, which is not its own duplicate. */
+  excludeId: id.optional(),
+});
+export type PlantDuplicatesQuery = z.input<typeof plantDuplicatesQuerySchema>;
+
+/** Taking plant out of use (PLC-005); the note is kept in its history. */
+export const restrictPlantSchema = z.object({
+  reason: z.enum(RESTRICTION_REASONS).nullable().optional(),
+  note: requiredText('Reason', 500),
+});
+export type RestrictPlantInput = z.input<typeof restrictPlantSchema>;
+
+/**
+ * Returning restricted plant to service. An override puts plant back in use
+ * despite an open restriction and needs a reason (PLC-007).
+ */
+export const returnToServiceSchema = z
+  .object({
+    note: optionalText('Note', 500),
+    override: z.boolean().default(false),
+  })
+  .refine((data) => !data.override || Boolean(data.note), {
+    path: ['note'],
+    message: 'Give the reason for the override.',
+  });
+export type ReturnToServiceInput = z.input<typeof returnToServiceSchema>;
 
 // ------------------------------------------------------------------ audit
 

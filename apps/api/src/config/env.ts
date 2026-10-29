@@ -55,6 +55,15 @@ const envObject = z.object({
 
   /** Where uploaded evidence is written (offline-sync proof of concept). */
   STORAGE_DIR: z.string().default('./storage'),
+
+  /**
+   * The customer web app's address. Plant QR codes point at
+   * <WEB_APP_URL>/q/<token>, so this must be the public URL in production.
+   */
+  WEB_APP_URL: z
+    .url('WEB_APP_URL must be a full URL, e.g. https://app.example.com.')
+    .default('http://localhost:3100')
+    .transform((url) => url.replace(/\/+$/, '')),
 });
 
 export const envSchema = envObject.superRefine((env, ctx) => {

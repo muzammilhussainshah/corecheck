@@ -74,6 +74,15 @@ export const AUDIT_ACTIONS = {
   'document_type.archived': 'Document type archived',
   'document_type.restored': 'Document type restored',
 
+  // Plant (PLC-007, PLT-AC-03)
+  'plant.created': 'Plant registered',
+  'plant.updated': 'Plant details updated',
+  'plant.restricted': 'Plant restricted',
+  'plant.returned_to_service': 'Plant returned to service',
+  'plant.archived': 'Plant archived',
+  'plant.restored': 'Plant restored',
+  'plant.exported': 'Plant register exported',
+
   // Internal provisioning (IAD-004)
   'organisation.created': 'Organisation created',
   'organisation.updated': 'Organisation updated',
@@ -111,6 +120,7 @@ export const AUDIT_CATEGORIES = [
   { key: 'custom_field', label: 'Custom fields' },
   { key: 'meter_type', label: 'Meter types' },
   { key: 'document_type', label: 'Document types' },
+  { key: 'plant', label: 'Plant' },
   { key: 'seat_limit', label: 'Seats' },
   { key: 'organisation', label: 'Organisations' },
   { key: 'staff', label: 'CoreCheck staff' },
