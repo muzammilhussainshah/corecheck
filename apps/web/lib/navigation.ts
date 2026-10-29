@@ -1,9 +1,14 @@
 import {
   IconAlertTriangle,
   IconBuildingFactory2,
+  IconBuildingStore,
+  IconBulldozer,
+  IconCategory,
   IconChartBar,
   IconChecklist,
   IconFileCertificate,
+  IconForms,
+  IconGauge,
   IconHome,
   IconListDetails,
   IconMapPin,
@@ -21,6 +26,8 @@ export interface NavItem {
   icon: ComponentType<{ size?: number; stroke?: number }>;
   /** Shown when the user holds any of these (NAV-004). */
   anyOf?: PermissionCode[];
+  /** Heading the item sits under on the Manage page. */
+  group?: string;
 }
 
 /** Role-sensitive navigation (NAV-001, NAV-003). */
@@ -64,36 +71,84 @@ export const ADMIN_NAV: NavItem[] = [
     href: '/admin/users',
     icon: IconUsers,
     anyOf: ['users.view'],
+    group: 'Organisation',
   },
   {
     label: 'Roles',
     href: '/admin/roles',
     icon: IconShieldCheck,
     anyOf: ['roles.view'],
+    group: 'Organisation',
   },
   {
     label: 'Sites',
     href: '/admin/sites',
     icon: IconMapPin,
     anyOf: ['org_structure.manage'],
+    group: 'Organisation',
   },
   {
     label: 'Teams',
     href: '/admin/teams',
     icon: IconUsersGroup,
     anyOf: ['org_structure.manage'],
+    group: 'Organisation',
   },
   {
     label: 'Disciplines',
     href: '/admin/disciplines',
     icon: IconTool,
     anyOf: ['org_structure.manage'],
+    group: 'Organisation',
+  },
+  {
+    label: 'Plant types',
+    href: '/admin/plant-types',
+    icon: IconBulldozer,
+    anyOf: ['plant_config.manage'],
+    group: 'Plant',
+  },
+  {
+    label: 'Categories',
+    href: '/admin/plant-categories',
+    icon: IconCategory,
+    anyOf: ['plant_config.manage'],
+    group: 'Plant',
+  },
+  {
+    label: 'Companies',
+    href: '/admin/plant-companies',
+    icon: IconBuildingStore,
+    anyOf: ['plant_config.manage'],
+    group: 'Plant',
+  },
+  {
+    label: 'Custom fields',
+    href: '/admin/custom-fields',
+    icon: IconForms,
+    anyOf: ['plant_config.manage'],
+    group: 'Plant',
+  },
+  {
+    label: 'Meter types',
+    href: '/admin/meter-types',
+    icon: IconGauge,
+    anyOf: ['meters.configure'],
+    group: 'Plant',
+  },
+  {
+    label: 'Document types',
+    href: '/admin/document-types',
+    icon: IconFileCertificate,
+    anyOf: ['documents.configure'],
+    group: 'Plant',
   },
   {
     label: 'Security audit',
     href: '/admin/audit',
     icon: IconListDetails,
     anyOf: ['audit.view_security'],
+    group: 'Security',
   },
 ];
 

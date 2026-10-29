@@ -3,7 +3,7 @@
 Har kaam mukammal hone par yahan `[x]` lagta hai. `🔄` = abhi chal raha hai.
 Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
-**Abhi:** Phase 1 — Manage ki web screens 🔄
+**Abhi:** Phase 2 — Plant register aur plant record 🔄
 
 ---
 
@@ -12,13 +12,13 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - [x] Database: plant types, categories, owners/hire companies, custom fields, meter types, document types, mandatory documents (RLS ke saath)
 - [x] API: har list ka add / edit / archive / restore + audit
 - [x] Permissions: `plant_config.manage`, `meters.configure`, `documents.configure` server par enforce
-- [ ] Web: Manage mein Plant types screen
-- [ ] Web: Plant categories screen
-- [ ] Web: Owners / hire companies screen
-- [ ] Web: Custom fields screen (text, number, date, dropdown; required/optional)
-- [ ] Web: Meter types screen (naam + unit)
-- [ ] Web: Document types screen (expiry hai ya nahi, warning kitne din pehle)
-- [ ] Web: Mandatory documents by plant type
+- [x] Web: Manage mein Plant types screen
+- [x] Web: Plant categories screen
+- [x] Web: Owners / hire companies screen
+- [x] Web: Custom fields screen (text, number, date, dropdown; required/optional)
+- [x] Web: Meter types screen (naam + unit)
+- [x] Web: Document types screen (expiry hai ya nahi, warning kitne din pehle)
+- [x] Web: Mandatory documents by plant type
 - [x] Tests: configuration API (permissions, duplicates, archive, tenant isolation)
 
 ## Phase 2 — Plant register aur plant record
@@ -119,3 +119,6 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
 - Plan approve hua; checklist bani. Phase 1 shuru.
 - Phase 1 backend mukammal: 7 nayi tables (RLS ke saath), `/config/...` API, duplicate naam ke saaf messages, audit, 9 integration tests pass.
+- Phase 1 web mukammal: Manage mein "Plant" group ke 6 screens (types, categories, companies, custom fields, meter types, document types) + mandatory documents. Browser mein check kiya.
+- Sath mein fix: duplicate naam ka error ab form ke field ke neeche dikhta hai (pehle sirf 3 second ka toast tha) — Sites, Teams, Roles waghera par bhi.
+- **Phase 1 mukammal ✅**

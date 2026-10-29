@@ -122,6 +122,10 @@ describe('Plant configuration (FRD ADM-003)', () => {
     expect(duplicate.body.message).toBe(
       'A meter type with this name already exists.',
     );
+    // Named against the field, so the form shows it there (VAL-002).
+    expect(duplicate.body.fieldErrors).toEqual([
+      { field: 'name', message: 'A meter type with this name already exists.' },
+    ]);
     // The same name may be both an owner and a hire company.
     await org.admin
       .post('/config/plant-companies', { kind: 'owner', name: 'Both Ways' })

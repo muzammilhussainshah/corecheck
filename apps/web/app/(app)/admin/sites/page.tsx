@@ -23,7 +23,10 @@ import {
 import { useState } from 'react';
 import type { ApiError, Area, Site } from '@corecheck/shared';
 import { ArchivedBadge, showApiErrors } from '@corecheck/ui';
-import { StructureManager } from '../../../../components/structure/StructureManager';
+import {
+  StructureManager,
+  textValue,
+} from '../../../../components/structure/StructureManager';
 import {
   useAreasQuery,
   useCreateAreaMutation,
@@ -250,13 +253,23 @@ export default function SitesPage() {
           create({
             kind: 'sites',
             body: {
-              name: values.name!,
-              code: values.code,
-              address: values.address,
+              name: textValue(values.name),
+              code: textValue(values.code),
+              address: textValue(values.address),
             },
           })
         }
-        onUpdate={(id, values) => update({ kind: 'sites', id, body: values })}
+        onUpdate={(id, values) =>
+          update({
+            kind: 'sites',
+            id,
+            body: {
+              name: textValue(values.name),
+              code: textValue(values.code),
+              address: textValue(values.address),
+            },
+          })
+        }
         onArchive={(id, archived) =>
           setArchived({ kind: 'sites', id, archived })
         }

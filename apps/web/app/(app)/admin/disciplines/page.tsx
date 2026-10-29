@@ -3,7 +3,10 @@
 import { Text } from '@mantine/core';
 import { useState } from 'react';
 import type { Discipline } from '@corecheck/shared';
-import { StructureManager } from '../../../../components/structure/StructureManager';
+import {
+  StructureManager,
+  textValue,
+} from '../../../../components/structure/StructureManager';
 import {
   useCreateStructureMutation,
   useDisciplinesQuery,
@@ -40,10 +43,14 @@ export default function DisciplinesPage() {
         },
       ]}
       onCreate={(values) =>
-        create({ kind: 'disciplines', body: { name: values.name! } })
+        create({ kind: 'disciplines', body: { name: textValue(values.name) } })
       }
       onUpdate={(id, values) =>
-        update({ kind: 'disciplines', id, body: { name: values.name! } })
+        update({
+          kind: 'disciplines',
+          id,
+          body: { name: textValue(values.name) },
+        })
       }
       onArchive={(id, archived) =>
         setArchived({ kind: 'disciplines', id, archived })

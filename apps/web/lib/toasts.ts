@@ -27,5 +27,9 @@ export const SUCCESS_MESSAGES: Record<string, SuccessMessage> = {
   setStructureArchived: (arg) => (arg.archived ? 'Archived.' : 'Restored.'),
   createArea: (_arg, result) => `Area “${result.name}” added.`,
   updateArea: 'Area saved.',
+  createConfig: (_arg, result) => `“${result.name ?? result.label}” added.`,
+  updateConfig: 'Changes saved.',
+  setConfigArchived: (arg) => (arg.archived ? 'Archived.' : 'Restored.'),
+  setRequiredDocuments: 'Mandatory documents saved.',
   createPocCheck: 'Check created.',
 };

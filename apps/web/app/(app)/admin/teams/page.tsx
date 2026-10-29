@@ -3,7 +3,10 @@
 import { Text } from '@mantine/core';
 import { useState } from 'react';
 import type { Team } from '@corecheck/shared';
-import { StructureManager } from '../../../../components/structure/StructureManager';
+import {
+  StructureManager,
+  textValue,
+} from '../../../../components/structure/StructureManager';
 import {
   useCreateStructureMutation,
   useSetStructureArchivedMutation,
@@ -50,14 +53,20 @@ export default function TeamsPage() {
       onCreate={(values) =>
         create({
           kind: 'teams',
-          body: { name: values.name!, description: values.description },
+          body: {
+            name: textValue(values.name),
+            description: textValue(values.description),
+          },
         })
       }
       onUpdate={(id, values) =>
         update({
           kind: 'teams',
           id,
-          body: { name: values.name, description: values.description },
+          body: {
+            name: textValue(values.name),
+            description: textValue(values.description),
+          },
         })
       }
       onArchive={(id, archived) => setArchived({ kind: 'teams', id, archived })}

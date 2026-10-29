@@ -6,8 +6,11 @@ import {
   Group,
   Menu,
   Modal,
+  NumberInput,
+  Select,
   Stack,
   Switch,
+  TagsInput,
   Text,
   TextInput,
 } from '@mantine/core';
@@ -40,12 +43,56 @@ export interface StructureItem {
   archivedAt: string | null;
 }
 
+/** A form value: text, a number ('' while blank), a switch or a list of texts. */
+export type FieldValue = string | number | boolean | string[];
+export type FieldValues = Record<string, FieldValue>;
+
 export interface FieldSpec {
   key: string;
   label: string;
   required?: boolean;
   description?: string;
+  /** How the field is entered; text when omitted. */
+  type?: 'text' | 'number' | 'select' | 'switch' | 'tags';
+  /** The choices of a select field. */
+  options?: { value: string; label: string }[];
+  /** Value of a new item; blank (or off) when omitted. */
+  defaultValue?: FieldValue;
+  /** Chosen when the item is created and shown read-only afterwards. */
+  createOnly?: boolean;
+  /** Shown only while this returns true for the form's current values. */
+  visible?: (values: FieldValues) => boolean;
+  min?: number;
+  max?: number;
+  placeholder?: string;
 }
+
+/** A text field's value, '' when it is not text. */
+export const textValue = (value: FieldValue | undefined): string =>
+  typeof value === 'string' ? value : '';
+
+/** A number field's value, undefined while it is blank. */
+export const numberValue = (
+  value: FieldValue | undefined,
+): number | undefined => (typeof value === 'number' ? value : undefined);
+
+const blankFor = (field: FieldSpec): FieldValue => {
+  if (field.defaultValue !== undefined) return field.defaultValue;
+  if (field.type === 'switch') return false;
+  if (field.type === 'tags') return [];
+  return '';
+};
+
+/** An item's stored value in the form's shape. */
+const valueOf = (field: FieldSpec, stored: unknown): FieldValue => {
+  if (stored === null || stored === undefined) return blankFor(field);
+  if (field.type === 'switch') return Boolean(stored);
+  if (field.type === 'tags')
+    return Array.isArray(stored) ? stored.map(String) : [];
+  if (field.type === 'number')
+    return typeof stored === 'number' ? stored : blankFor(field);
+  return String(stored);
+};
 
 type Result = { error?: unknown };
 
@@ -61,14 +108,15 @@ interface Props<T extends StructureItem> {
   fields: FieldSpec[];
   extraColumns?: Column<T>[];
   rowActions?: (item: T) => ReactNode;
-  onCreate: (values: Record<string, string>) => Promise<Result>;
-  onUpdate: (id: string, values: Record<string, string>) => Promise<Result>;
+  onCreate: (values: FieldValues) => Promise<Result>;
+  onUpdate: (id: string, values: FieldValues) => Promise<Result>;
   onArchive: (id: string, archived: boolean) => Promise<Result>;
 }
 
 /**
- * Create, rename, archive and restore one kind of organisation structure
- * (FRD ORG-001). Archived items stay in history but cannot be newly assigned.
+ * Create, edit, archive and restore one list of organisation structure or
+ * configuration (FRD ORG-001, ADM-003). Archived items stay in history but
+ * cannot be newly assigned.
  */
 export function StructureManager<T extends StructureItem>(props: Props<T>) {
   const { noun, fields } = props;
@@ -78,16 +126,23 @@ export function StructureManager<T extends StructureItem>(props: Props<T>) {
   const visibleItems = term
     ? props.items?.filter((item) => item.name.toLowerCase().includes(term))
     : props.items;
-  const blank = Object.fromEntries(fields.map((field) => [field.key, '']));
-  const form = useForm<Record<string, string>>({
+  const blank = Object.fromEntries(
+    fields.map((field) => [field.key, blankFor(field)]),
+  );
+  const isShown = (field: FieldSpec, values: FieldValues) =>
+    !field.visible || field.visible(values);
+  const form = useForm<FieldValues>({
     initialValues: blank,
     validate: Object.fromEntries(
       fields
         .filter((field) => field.required)
         .map((field) => [
           field.key,
-          (value: string) =>
-            value?.trim()
+          (value: FieldValue, values: FieldValues) =>
+            // A blank number is '' too, so only text can be empty.
+            !isShown(field, values) ||
+            typeof value !== 'string' ||
+            value.trim() !== ''
               ? null
               : `${noun} ${field.label.toLowerCase()} is required.`,
         ]),
@@ -101,7 +156,7 @@ export function StructureManager<T extends StructureItem>(props: Props<T>) {
         : Object.fromEntries(
             fields.map((field) => [
               field.key,
-              String((item as Record<string, unknown>)[field.key] ?? ''),
+              valueOf(field, (item as Record<string, unknown>)[field.key]),
             ]),
           ),
     );
@@ -121,6 +176,68 @@ export function StructureManager<T extends StructureItem>(props: Props<T>) {
 
   const archive = async (item: T, archived: boolean) => {
     await props.onArchive(item.id, archived);
+  };
+
+  const renderField = (field: FieldSpec) => {
+    const locked = field.createOnly && editing !== 'new';
+    const common = {
+      label: field.label,
+      description: locked
+        ? `${field.description ? `${field.description} ` : ''}Set when the ${noun.toLowerCase()} was created.`
+        : field.description,
+      required: field.required,
+      disabled: locked,
+      placeholder: field.placeholder,
+    };
+    switch (field.type) {
+      case 'number':
+        return (
+          <NumberInput
+            key={field.key}
+            {...common}
+            min={field.min}
+            max={field.max}
+            allowDecimal={false}
+            {...form.getInputProps(field.key)}
+          />
+        );
+      case 'select':
+        return (
+          <Select
+            key={field.key}
+            {...common}
+            data={field.options ?? []}
+            allowDeselect={false}
+            {...form.getInputProps(field.key)}
+          />
+        );
+      case 'switch':
+        return (
+          <Switch
+            key={field.key}
+            label={field.label}
+            description={common.description}
+            disabled={locked}
+            {...form.getInputProps(field.key, { type: 'checkbox' })}
+          />
+        );
+      case 'tags':
+        return (
+          <TagsInput
+            key={field.key}
+            {...common}
+            {...form.getInputProps(field.key)}
+          />
+        );
+      default:
+        return (
+          <TextInput
+            key={field.key}
+            {...common}
+            {...form.getInputProps(field.key)}
+          />
+        );
+    }
   };
 
   const columns: Column<T>[] = [
@@ -246,15 +363,9 @@ export function StructureManager<T extends StructureItem>(props: Props<T>) {
       >
         <form onSubmit={submit} noValidate>
           <Stack>
-            {fields.map((field) => (
-              <TextInput
-                key={field.key}
-                label={field.label}
-                description={field.description}
-                required={field.required}
-                {...form.getInputProps(field.key)}
-              />
-            ))}
+            {fields
+              .filter((field) => isShown(field, form.values))
+              .map(renderField)}
             <Group justify="flex-end">
               <Button variant="default" onClick={() => setEditing(null)}>
                 Cancel

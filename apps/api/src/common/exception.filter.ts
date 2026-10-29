@@ -12,23 +12,63 @@ import { QueryFailedError } from 'typeorm';
 import { type ApiError, ERROR_CODES, type ErrorCode } from '@corecheck/shared';
 import { AppException } from './errors.js';
 
-/** Friendly messages for unique indexes a user can collide with. */
-const UNIQUE_MESSAGES: Record<string, string> = {
-  organisations_name_key: 'An organisation with this name already exists.',
-  roles_org_name_key: 'A role with this name already exists.',
-  sites_org_name_key: 'A site with this name already exists.',
-  site_areas_site_name_key:
-    'An area with this name already exists on this site.',
-  teams_org_name_key: 'A team with this name already exists.',
-  disciplines_org_name_key: 'A discipline with this name already exists.',
-  platform_staff_email_key: 'A staff member with this email already exists.',
-  plant_types_org_name_key: 'A plant type with this name already exists.',
-  plant_categories_org_name_key: 'A category with this name already exists.',
-  plant_companies_org_kind_name_key: 'A company with this name already exists.',
-  plant_custom_fields_org_label_key:
-    'A custom field with this name already exists.',
-  meter_types_org_name_key: 'A meter type with this name already exists.',
-  document_types_org_name_key: 'A document type with this name already exists.',
+/**
+ * Unique indexes a user can collide with: the message, and the form field it
+ * belongs to so the form can show it under that field (VAL-002).
+ */
+const UNIQUE_MESSAGES: Record<string, { field: string; message: string }> = {
+  organisations_name_key: {
+    field: 'name',
+    message: 'An organisation with this name already exists.',
+  },
+  roles_org_name_key: {
+    field: 'name',
+    message: 'A role with this name already exists.',
+  },
+  sites_org_name_key: {
+    field: 'name',
+    message: 'A site with this name already exists.',
+  },
+  site_areas_site_name_key: {
+    field: 'name',
+    message: 'An area with this name already exists on this site.',
+  },
+  teams_org_name_key: {
+    field: 'name',
+    message: 'A team with this name already exists.',
+  },
+  disciplines_org_name_key: {
+    field: 'name',
+    message: 'A discipline with this name already exists.',
+  },
+  platform_staff_email_key: {
+    field: 'email',
+    message: 'A staff member with this email already exists.',
+  },
+  plant_types_org_name_key: {
+    field: 'name',
+    message: 'A plant type with this name already exists.',
+  },
+  plant_categories_org_name_key: {
+    field: 'name',
+    message: 'A category with this name already exists.',
+  },
+  plant_companies_org_kind_name_key: {
+    field: 'name',
+    message: 'A company with this name already exists.',
+  },
+  plant_custom_fields_org_label_key: {
+    field: 'label',
+    message: 'A custom field with this name already exists.',
+  },
+  meter_types_org_name_key: {
+    field: 'name',
+    message: 'A meter type with this name already exists.',
+  },
+  document_types_org_name_key: {
+    field: 'name',
+    message: 'A document type with this name already exists.',
+  },
 };
 
 const STATUS_CODES: Partial<Record<number, ErrorCode>> = {
@@ -158,11 +198,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private fromDatabaseError(error: PgError): ApiError | null {
     switch (error.code) {
       case '23505': {
-        const message = error.constraint && UNIQUE_MESSAGES[error.constraint];
+        const known = error.constraint
+          ? UNIQUE_MESSAGES[error.constraint]
+          : undefined;
         return {
           statusCode: HttpStatus.CONFLICT,
           code: ERROR_CODES.CONFLICT,
-          message: message ?? 'That already exists.',
+          message: known?.message ?? 'That already exists.',
+          ...(known && { fieldErrors: [known] }),
         };
       }
       case 'CC001':

@@ -3,7 +3,7 @@
 import { Box, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { COLORS } from '@corecheck/ui';
 import { ADMIN_NAV } from '../../../lib/navigation';
 import { useSession } from '../../../lib/session';
@@ -29,8 +29,8 @@ export default function ManageLayout({ children }: { children: ReactNode }) {
           Manage
         </Title>
         <Text fz="sm" fw={500} c={COLORS.muted} mt={4}>
-          Configure your CoreCheck workspace: users, roles, sites, teams,
-          disciplines and the security audit.
+          Configure your CoreCheck workspace: people and access, plant settings
+          and the security audit.
         </Text>
       </Box>
       <Paper
@@ -48,7 +48,7 @@ export default function ManageLayout({ children }: { children: ReactNode }) {
           minHeight: 'calc(100vh - 230px)',
         }}
       >
-        <style>{`@media (max-width: 62em) { .cc-manage-rail { flex-direction: row !important; flex: 1 1 100% !important; overflow-x: auto; } .cc-manage-rail a { white-space: nowrap; flex: 0 0 auto; } }`}</style>
+        <style>{`@media (max-width: 62em) { .cc-manage-rail { flex-direction: row !important; flex: 1 1 100% !important; overflow-x: auto; } .cc-manage-rail a { white-space: nowrap; flex: 0 0 auto; } .cc-manage-group { display: none; } }`}</style>
         <Box
           component="nav"
           aria-label="Manage sections"
@@ -66,32 +66,50 @@ export default function ManageLayout({ children }: { children: ReactNode }) {
             gap: 4,
           }}
         >
-          {sections.map((item) => {
+          {sections.map((item, index) => {
             const active = item.href === pathname;
+            const startsGroup =
+              item.group && item.group !== sections[index - 1]?.group;
             return (
-              <UnstyledButton
-                key={item.href}
-                component={Link}
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                px="sm"
-                py={10}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  borderRadius: 10,
-                  fontWeight: 500,
-                  fontSize: 15,
-                  color: active ? 'white' : COLORS.muted,
-                  backgroundColor: active
-                    ? 'var(--mantine-color-brand-6)'
-                    : 'transparent',
-                }}
-              >
-                <item.icon size={18} stroke={1.8} />
-                {item.label}
-              </UnstyledButton>
+              <Fragment key={item.href}>
+                {startsGroup && (
+                  <Text
+                    className="cc-manage-group"
+                    size="xs"
+                    fw={600}
+                    tt="uppercase"
+                    c={COLORS.muted}
+                    px="sm"
+                    pt={index === 0 ? 4 : 12}
+                    pb={2}
+                    style={{ letterSpacing: 0.4 }}
+                  >
+                    {item.group}
+                  </Text>
+                )}
+                <UnstyledButton
+                  component={Link}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  px="sm"
+                  py={10}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    borderRadius: 10,
+                    fontWeight: 500,
+                    fontSize: 15,
+                    color: active ? 'white' : COLORS.muted,
+                    backgroundColor: active
+                      ? 'var(--mantine-color-brand-6)'
+                      : 'transparent',
+                  }}
+                >
+                  <item.icon size={18} stroke={1.8} />
+                  {item.label}
+                </UnstyledButton>
+              </Fragment>
             );
           })}
         </Box>

@@ -21,9 +21,11 @@ import {
   type Paginated,
   type PocCheck,
   type PocCreateCheckInput,
+  type PlantType,
   type PocPullResponse,
   type RoleSummary,
   type SeatUsage,
+  type SetRequiredDocumentsInput,
   type Site,
   type Team,
   type UpdateRoleInput,
@@ -68,6 +70,15 @@ const handleSessionErrors = (error: ApiError): void => {
 
 type StructureKind = 'sites' | 'teams' | 'disciplines';
 
+/** The plant configuration lists, by their URL segment under /config. */
+export type ConfigKind =
+  | 'plant-types'
+  | 'plant-categories'
+  | 'plant-companies'
+  | 'custom-fields'
+  | 'meter-types'
+  | 'document-types';
+
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: axiosBaseQuery(createHttpClient(), handleSessionErrors),
@@ -87,6 +98,7 @@ export const api = createApi({
     'Discipline',
     'Audit',
     'Poc',
+    'Config',
   ],
   endpoints: (build) => ({
     // ------------------------------------------------------------ session
@@ -291,6 +303,73 @@ export const api = createApi({
       invalidatesTags: ['Area'],
     }),
 
+    // ------------------------------------------------ plant configuration
+    // One set of endpoints serves every list under /config; lib/config.ts
+    // gives each list its own response type.
+    configList: build.query<
+      unknown[],
+      { kind: ConfigKind; includeArchived?: boolean }
+    >({
+      query: ({ kind, includeArchived }) => ({
+        url: `/config/${kind}`,
+        params: includeArchived ? { includeArchived: 'true' } : undefined,
+      }),
+      providesTags: (_result, _error, { kind }) => [
+        { type: 'Config', id: kind },
+      ],
+    }),
+    createConfig: build.mutation<
+      { name?: string; label?: string },
+      { kind: ConfigKind; body: object }
+    >({
+      query: ({ kind, body }) => ({
+        url: `/config/${kind}`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { kind }) => [
+        { type: 'Config', id: kind },
+      ],
+    }),
+    updateConfig: build.mutation<
+      unknown,
+      { kind: ConfigKind; id: string; body: object }
+    >({
+      query: ({ kind, id, body }) => ({
+        url: `/config/${kind}/${id}`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { kind }) => [
+        { type: 'Config', id: kind },
+      ],
+    }),
+    setConfigArchived: build.mutation<
+      unknown,
+      { kind: ConfigKind; id: string; archived: boolean }
+    >({
+      query: ({ kind, id, archived }) => ({
+        url: `/config/${kind}/${id}/${archived ? 'archive' : 'restore'}`,
+        method: 'POST',
+      }),
+      // Archiving a document type can change what plant types require.
+      invalidatesTags: (_result, _error, { kind }) => [
+        { type: 'Config', id: kind },
+        { type: 'Config', id: 'plant-types' },
+      ],
+    }),
+    setRequiredDocuments: build.mutation<
+      PlantType,
+      { plantTypeId: string } & SetRequiredDocumentsInput
+    >({
+      query: ({ plantTypeId, ...body }) => ({
+        url: `/config/plant-types/${plantTypeId}/required-documents`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: [{ type: 'Config', id: 'plant-types' }],
+    }),
+
     // -------------------------------------------------------------- audit
     auditEvents: build.query<Paginated<AuditEvent>, ListAuditQuery>({
       query: (params) => ({
@@ -338,6 +417,11 @@ export const {
   useAreasQuery,
   useCreateAreaMutation,
   useUpdateAreaMutation,
+  useConfigListQuery,
+  useCreateConfigMutation,
+  useUpdateConfigMutation,
+  useSetConfigArchivedMutation,
+  useSetRequiredDocumentsMutation,
   useAuditEventsQuery,
   usePocChecksQuery,
   useCreatePocCheckMutation,
