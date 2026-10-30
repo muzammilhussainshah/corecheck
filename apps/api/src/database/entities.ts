@@ -590,6 +590,38 @@ export class ReceptionSubmissionEntity {
   @Column('jsonb') outcomeReasons!: string[];
 }
 
+// ------------------------------------------------- meter readings (M2)
+
+@Entity({ schema: SCHEMA, name: 'meter_readings' })
+export class MeterReadingEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') plantId!: string;
+  @Column('uuid') meterTypeId!: string;
+  /** numeric comes back from pg as text, keeping its exact value. */
+  @Column('numeric') value!: string;
+  @Column('text') unit!: string;
+  @Column('timestamptz') readAt!: Date;
+  @Column('text') source!: 'manual' | 'reception';
+  @Column('uuid', { nullable: true }) checkId!: string | null;
+  @Column('uuid') recordedBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'meter_reading_corrections' })
+export class MeterReadingCorrectionEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') readingId!: string;
+  @Column('numeric') previousValue!: string;
+  @Column('numeric') newValue!: string;
+  @Column('text') reason!: string;
+  @Column('uuid') correctedBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  correctedAt!: Date;
+}
+
 export const ENTITIES = [
   OrganisationEntity,
   RoleEntity,
@@ -627,4 +659,6 @@ export const ENTITIES = [
   ReceptionAnswerEntity,
   ReceptionEvidenceEntity,
   ReceptionSubmissionEntity,
+  MeterReadingEntity,
+  MeterReadingCorrectionEntity,
 ];

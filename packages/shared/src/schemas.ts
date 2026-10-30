@@ -701,6 +701,29 @@ export const returnReceptionSchema = z.object({
 });
 export type ReturnReceptionInput = z.input<typeof returnReceptionSchema>;
 
+// --------------------------------------------------------- meter readings
+
+const meterValue = z
+  .number({ error: 'Enter the reading as a number.' })
+  .finite()
+  .min(0, 'A reading cannot be negative.')
+  .max(999_999_999, 'That reading is too large.');
+
+export const createMeterReadingSchema = z.object({
+  meterTypeId: requiredId('Meter'),
+  value: meterValue,
+  readAt: z.iso.datetime({ offset: true }).optional(),
+});
+export type CreateMeterReadingInput = z.input<typeof createMeterReadingSchema>;
+
+export const correctMeterReadingSchema = z.object({
+  value: meterValue,
+  reason: requiredText('Reason', 500),
+});
+export type CorrectMeterReadingInput = z.input<
+  typeof correctMeterReadingSchema
+>;
+
 // ------------------------------------------------------------------ audit
 
 export const listAuditQuerySchema = paginationQuerySchema.extend({

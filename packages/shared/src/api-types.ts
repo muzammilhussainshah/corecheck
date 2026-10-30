@@ -646,3 +646,33 @@ export interface PlantReception {
   }>;
   capabilities: { assign: boolean };
 }
+
+// --------------------------------------------------------- meter readings
+
+export interface MeterReading {
+  id: string;
+  meterType: IdName;
+  /** The current value, after any corrections. */
+  value: number;
+  unit: string;
+  readAt: string;
+  source: 'manual' | 'reception';
+  recordedBy: string;
+  /** Newest first; each keeps the value it replaced (MTR-005). */
+  corrections: Array<{
+    previousValue: number;
+    newValue: number;
+    reason: string;
+    correctedBy: string;
+    correctedAt: string;
+  }>;
+  canCorrect: boolean;
+}
+
+export interface PlantMeters {
+  /** The newest reading of each meter. */
+  latest: MeterReading[];
+  /** Every reading, newest first (MTR-006). */
+  readings: MeterReading[];
+  capabilities: { record: boolean };
+}

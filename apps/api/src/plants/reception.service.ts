@@ -46,6 +46,7 @@ import { TenantDb } from '../database/db-context.js';
 import { TemplatesService } from '../templates/templates.service.js';
 import { ComplianceService } from './compliance.service.js';
 import type { UploadedFile } from './documents.service.js';
+import { MetersService } from './meters.service.js';
 import { PlantsService } from './plants.service.js';
 
 type AnswersInput = z.output<typeof saveReceptionAnswersSchema>['answers'];
@@ -99,6 +100,7 @@ export class ReceptionService {
     private readonly plants: PlantsService,
     private readonly templates: TemplatesService,
     private readonly compliance: ComplianceService,
+    private readonly meters: MetersService,
     private readonly storage: StorageService,
     private readonly audit: AuditService,
     private readonly clock: Clock,
@@ -424,6 +426,16 @@ export class ReceptionService {
       { checkId, outcome, reasons },
     );
 
+    // Finished receptions put their readings on the plant (MTR-003).
+    if (outcome !== 'awaiting_approval')
+      await this.meters.recordFromReception(
+        userActor(auth),
+        plant,
+        checkId,
+        questions,
+        [...answers.values()],
+      );
+
     if (outcome === 'restricted')
       await this.setPlantStatus(userActor(auth), plant, {
         status: 'restricted',
@@ -456,7 +468,7 @@ export class ReceptionService {
   /** A reviewer approves submitted reception (REC-006, REC-AC-03). */
   async approve(auth: CustomerAuth, checkId: string): Promise<PlantReception> {
     this.require(auth, 'reception.approve');
-    const { check, plant } = await this.loadVisible(auth, checkId);
+    const { check, plant, questions } = await this.loadVisible(auth, checkId);
     if (check.status !== 'submitted')
       throw conflict(
         ERROR_CODES.CONFLICT,
@@ -481,6 +493,13 @@ export class ReceptionService {
       'reception.approved',
       `Approved reception of ${plant.assetId}`,
       { checkId },
+    );
+    await this.meters.recordFromReception(
+      userActor(auth),
+      plant,
+      checkId,
+      questions,
+      await this.db.findBy(ReceptionAnswerEntity, { checkId }),
     );
     await this.setPlantStatus(userActor(auth), plant, {
       status: 'approved',

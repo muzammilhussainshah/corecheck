@@ -62,6 +62,7 @@ import {
 import { AppPageHeader } from '../../../../components/AppPageHeader';
 import { ComplianceBadge } from '../../../../components/plant/DocumentBadges';
 import { DocumentsTab } from '../../../../components/plant/DocumentsTab';
+import { MetersTab } from '../../../../components/plant/MetersTab';
 import { PlantStatusBadge } from '../../../../components/plant/PlantStatusBadge';
 import { ReceptionTab } from '../../../../components/plant/ReceptionTab';
 import {
@@ -631,10 +632,7 @@ export default function PlantProfilePage() {
           <DocumentsTab plant={plant} />
         </Tabs.Panel>
         <Tabs.Panel value="meters">
-          <ComingTab
-            title="No meter readings yet"
-            message="Readings recorded during reception or by hand appear here in date order."
-          />
+          <MetersTab plant={plant} />
         </Tabs.Panel>
         <Tabs.Panel value="checks">
           <ComingTab

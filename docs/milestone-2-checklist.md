@@ -3,7 +3,7 @@
 Har kaam mukammal hone par yahan `[x]` lagta hai. `🔄` = abhi chal raha hai.
 Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
-**Abhi:** Phase 5 — Meter readings 🔄
+**Abhi:** Phase 6 — Plant import 🔄
 
 ---
 
@@ -74,11 +74,11 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
 ## Phase 5 — Meter readings
 
-- [ ] Plant par kai meter types
-- [ ] Reading: reception se ya manual (value, unit, waqt, source, user)
-- [ ] Correction: reason zaroori, asli value mehfooz
-- [ ] Web: Plant profile ka Meter readings tab (history)
-- [ ] Tests: readings + corrections
+- [x] Plant par kai meter types
+- [x] Reading: reception se ya manual (value, unit, waqt, source, user)
+- [x] Correction: reason zaroori, asli value mehfooz
+- [x] Web: Plant profile ka Meter readings tab (history)
+- [x] Tests: readings + corrections
 
 ## Phase 6 — Plant import
 
@@ -133,3 +133,4 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - Phase 4 backend mukammal: templates (draft/publish, published version database level par freeze, naya version), reception assign/answers/photos/submit/approve/return/cancel, har submission ki copy, version pinning. 22 naye tests (templates + reception).
 - Phase 4 web mukammal: Manage mein Reception templates (builder, publish, naya version), plant ka Reception tab (assign, jawab, photos, submit, approve, return, cancel, submissions). Browser mein poora flow check kiya; missing LOLER par Approve ruk gaya.
 - **Phase 4 mukammal ✅**
+- **Phase 5 mukammal ✅** Meter readings: manual aur reception se, latest cards, history, correction (reason ke sath, asli value mehfooz). 4 naye tests.

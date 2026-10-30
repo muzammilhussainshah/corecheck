@@ -92,6 +92,10 @@ export const AUDIT_ACTIONS = {
   'document.restored': 'Document restored',
   'plant.approved': 'Plant approved',
 
+  // Meter readings (MTR-004, MTR-005)
+  'meter.recorded': 'Meter reading recorded',
+  'meter.corrected': 'Meter reading corrected',
+
   // Templates and reception (TMP-001..005, FRD 8)
   'template.created': 'Template created',
   'template.updated': 'Template draft saved',
@@ -143,6 +147,7 @@ export const AUDIT_CATEGORIES = [
   { key: 'document_type', label: 'Document types' },
   { key: 'plant', label: 'Plant' },
   { key: 'document', label: 'Documents' },
+  { key: 'meter', label: 'Meter readings' },
   { key: 'template', label: 'Templates' },
   { key: 'reception', label: 'Reception' },
   { key: 'seat_limit', label: 'Seats' },

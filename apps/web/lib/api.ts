@@ -22,6 +22,9 @@ import {
   type PocCheck,
   type PocCreateCheckInput,
   type CheckTemplateDetail,
+  type CorrectMeterReadingInput,
+  type CreateMeterReadingInput,
+  type PlantMeters,
   type CheckTemplateSummary,
   type CreatePlantInput,
   type CreateTemplateInput,
@@ -126,6 +129,7 @@ export const api = createApi({
     'Document',
     'Template',
     'Reception',
+    'Meter',
   ],
   endpoints: (build) => ({
     // ------------------------------------------------------------ session
@@ -633,7 +637,35 @@ export const api = createApi({
         method: 'POST',
         body: action === 'return' ? { comment } : undefined,
       }),
-      invalidatesTags: ['Reception', 'Plant', 'Audit'],
+      invalidatesTags: ['Reception', 'Plant', 'Audit', 'Meter'],
+    }),
+
+    // ------------------------------------------------------- meter readings
+    plantMeters: build.query<PlantMeters, string>({
+      query: (plantId) => ({ url: `/plants/${plantId}/meters` }),
+      providesTags: ['Meter'],
+    }),
+    recordMeterReading: build.mutation<
+      PlantMeters,
+      { plantId: string } & CreateMeterReadingInput
+    >({
+      query: ({ plantId, ...body }) => ({
+        url: `/plants/${plantId}/meters`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Meter', 'Plant'],
+    }),
+    correctMeterReading: build.mutation<
+      PlantMeters,
+      { id: string } & CorrectMeterReadingInput
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/meter-readings/${id}/correct`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Meter', 'Plant'],
     }),
 
     // -------------------------------------------------------------- audit
@@ -714,6 +746,9 @@ export const {
   useAddReceptionPhotoMutation,
   useRemoveReceptionPhotoMutation,
   useReceptionActionMutation,
+  usePlantMetersQuery,
+  useRecordMeterReadingMutation,
+  useCorrectMeterReadingMutation,
   useAuditEventsQuery,
   usePocChecksQuery,
   useCreatePocCheckMutation,

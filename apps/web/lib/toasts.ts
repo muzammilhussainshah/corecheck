@@ -72,5 +72,7 @@ export const SUCCESS_MESSAGES: Record<string, SuccessMessage> = {
   assignReception: 'Reception check assigned.',
   saveReceptionAnswers: 'Answers saved.',
   receptionAction: (arg) => RECEPTION_ACTIONS[arg.action] ?? 'Done.',
+  recordMeterReading: 'Reading saved.',
+  correctMeterReading: 'Reading corrected. The original stays in the history.',
   createPocCheck: 'Check created.',
 };
