@@ -63,6 +63,7 @@ import { AppPageHeader } from '../../../../components/AppPageHeader';
 import { ComplianceBadge } from '../../../../components/plant/DocumentBadges';
 import { DocumentsTab } from '../../../../components/plant/DocumentsTab';
 import { PlantStatusBadge } from '../../../../components/plant/PlantStatusBadge';
+import { ReceptionTab } from '../../../../components/plant/ReceptionTab';
 import {
   usePlantHistoryQuery,
   usePlantQuery,
@@ -624,10 +625,7 @@ export default function PlantProfilePage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="reception">
-          <ComingTab
-            title="No reception check yet"
-            message="A Supervisor, Manager or Admin assigns a reception template; the reception check and its approval appear here."
-          />
+          <ReceptionTab plant={plant} />
         </Tabs.Panel>
         <Tabs.Panel value="documents">
           <DocumentsTab plant={plant} />

@@ -6,6 +6,7 @@ import {
   IconCategory,
   IconChartBar,
   IconChecklist,
+  IconClipboardList,
   IconFileCertificate,
   IconForms,
   IconGauge,
@@ -141,6 +142,13 @@ export const ADMIN_NAV: NavItem[] = [
     href: '/admin/document-types',
     icon: IconFileCertificate,
     anyOf: ['documents.configure'],
+    group: 'Plant',
+  },
+  {
+    label: 'Reception templates',
+    href: '/admin/templates',
+    icon: IconClipboardList,
+    anyOf: ['templates.manage'],
     group: 'Plant',
   },
   {

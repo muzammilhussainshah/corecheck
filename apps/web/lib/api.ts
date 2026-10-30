@@ -21,7 +21,14 @@ import {
   type Paginated,
   type PocCheck,
   type PocCreateCheckInput,
+  type CheckTemplateDetail,
+  type CheckTemplateSummary,
   type CreatePlantInput,
+  type CreateTemplateInput,
+  type PlantReception,
+  type ReceptionCheck,
+  type SaveReceptionAnswersInput,
+  type SaveTemplateDraftInput,
   type DocumentRegisterRow,
   type ListDocumentsQuery,
   type ListPlantsQuery,
@@ -117,6 +124,8 @@ export const api = createApi({
     'Config',
     'Plant',
     'Document',
+    'Template',
+    'Reception',
   ],
   endpoints: (build) => ({
     // ------------------------------------------------------------ session
@@ -518,6 +527,115 @@ export const api = createApi({
       invalidatesTags: ['Document', 'Plant'],
     }),
 
+    // ---------------------------------------------------------- templates
+    templates: build.query<
+      CheckTemplateSummary[],
+      { purpose?: 'reception'; includeArchived?: boolean } | void
+    >({
+      query: (args) => ({
+        url: '/templates',
+        params: cleanParams({
+          purpose: args?.purpose,
+          includeArchived: args?.includeArchived ? 'true' : undefined,
+        }),
+      }),
+      providesTags: ['Template'],
+    }),
+    template: build.query<CheckTemplateDetail, string>({
+      query: (id) => ({ url: `/templates/${id}` }),
+      providesTags: ['Template'],
+    }),
+    createTemplate: build.mutation<CheckTemplateDetail, CreateTemplateInput>({
+      query: (body) => ({ url: '/templates', method: 'POST', body }),
+      invalidatesTags: ['Template'],
+    }),
+    saveTemplateDraft: build.mutation<
+      CheckTemplateDetail,
+      { id: string } & SaveTemplateDraftInput
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/templates/${id}/draft`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Template'],
+    }),
+    templateAction: build.mutation<
+      CheckTemplateDetail,
+      { id: string; action: 'publish' | 'archive' | 'restore' }
+    >({
+      query: ({ id, action }) => ({
+        url: `/templates/${id}/${action}`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Template'],
+    }),
+
+    // ---------------------------------------------------------- reception
+    // Reception changes the plant's status, so plant data is refreshed too.
+    plantReception: build.query<PlantReception, string>({
+      query: (plantId) => ({ url: `/plants/${plantId}/reception` }),
+      providesTags: ['Reception'],
+    }),
+    assignReception: build.mutation<
+      PlantReception,
+      { plantId: string; templateId: string }
+    >({
+      query: ({ plantId, templateId }) => ({
+        url: `/plants/${plantId}/reception`,
+        method: 'POST',
+        body: { templateId },
+      }),
+      invalidatesTags: ['Reception', 'Plant'],
+    }),
+    saveReceptionAnswers: build.mutation<
+      ReceptionCheck,
+      { checkId: string } & SaveReceptionAnswersInput
+    >({
+      query: ({ checkId, ...body }) => ({
+        url: `/receptions/${checkId}/answers`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Reception'],
+    }),
+    addReceptionPhoto: build.mutation<
+      ReceptionCheck,
+      { checkId: string; questionId: string; form: FormData }
+    >({
+      query: ({ checkId, questionId, form }) => ({
+        url: `/receptions/${checkId}/questions/${encodeURIComponent(questionId)}/evidence`,
+        method: 'POST',
+        body: form,
+      }),
+      invalidatesTags: ['Reception'],
+    }),
+    removeReceptionPhoto: build.mutation<
+      ReceptionCheck,
+      { checkId: string; evidenceId: string }
+    >({
+      query: ({ checkId, evidenceId }) => ({
+        url: `/receptions/${checkId}/evidence/${evidenceId}/remove`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Reception'],
+    }),
+    receptionAction: build.mutation<
+      PlantReception,
+      {
+        checkId: string;
+        action: 'submit' | 'approve' | 'return' | 'cancel';
+        comment?: string;
+      }
+    >({
+      query: ({ checkId, action, comment }) => ({
+        url: `/receptions/${checkId}/${action}`,
+        method: 'POST',
+        body: action === 'return' ? { comment } : undefined,
+      }),
+      invalidatesTags: ['Reception', 'Plant', 'Audit'],
+    }),
+
     // -------------------------------------------------------------- audit
     auditEvents: build.query<Paginated<AuditEvent>, ListAuditQuery>({
       query: (params) => ({
@@ -585,6 +703,17 @@ export const {
   useUploadDocumentMutation,
   useReplaceDocumentMutation,
   useDocumentActionMutation,
+  useTemplatesQuery,
+  useTemplateQuery,
+  useCreateTemplateMutation,
+  useSaveTemplateDraftMutation,
+  useTemplateActionMutation,
+  usePlantReceptionQuery,
+  useAssignReceptionMutation,
+  useSaveReceptionAnswersMutation,
+  useAddReceptionPhotoMutation,
+  useRemoveReceptionPhotoMutation,
+  useReceptionActionMutation,
   useAuditEventsQuery,
   usePocChecksQuery,
   useCreatePocCheckMutation,

@@ -3,7 +3,7 @@
 Har kaam mukammal hone par yahan `[x]` lagta hai. `🔄` = abhi chal raha hai.
 Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
-**Abhi:** Phase 4 — Template builder aur Reception ki web screens 🔄
+**Abhi:** Phase 5 — Meter readings 🔄
 
 ---
 
@@ -62,14 +62,14 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - [x] Sawal ki types: yes/no, pass/fail, text, number, photo/file, meter reading
 - [x] Sawal settings: mandatory, comment zaroori, photo zaroori, fail par Offline
 - [x] Template setting: automatic ya manual approval
-- [ ] Web: Template builder (Manage)
+- [x] Web: Template builder (Manage)
 - [x] Assign: Supervisor/Manager/Admin plant par template assign kare
 - [x] Reception bharna: draft save, photos, meter reading, submit
 - [x] Auto approval → Approved/Online (sab rules pass)
 - [x] Manual approval → Awaiting Approval → approve / return with comment
 - [x] Offline trigger fail ya document missing → Restricted/Offline
 - [x] Template version + har jawab + kis ne diya + evidence mehfooz
-- [ ] Web: Reception screen (plant profile se)
+- [x] Web: Reception screen (plant profile se)
 - [x] Tests: reception journey (auto, manual, return, offline trigger, missing document)
 
 ## Phase 5 — Meter readings
@@ -131,3 +131,5 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - Deploy ke liye note: production/staging mein `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` set karne honge (docs/environments.md).
 - **Phase 3 mukammal ✅**
 - Phase 4 backend mukammal: templates (draft/publish, published version database level par freeze, naya version), reception assign/answers/photos/submit/approve/return/cancel, har submission ki copy, version pinning. 22 naye tests (templates + reception).
+- Phase 4 web mukammal: Manage mein Reception templates (builder, publish, naya version), plant ka Reception tab (assign, jawab, photos, submit, approve, return, cancel, submissions). Browser mein poora flow check kiya; missing LOLER par Approve ruk gaya.
+- **Phase 4 mukammal ✅**

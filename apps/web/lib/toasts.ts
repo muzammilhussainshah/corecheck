@@ -7,6 +7,19 @@ const USER_ACTIONS: Record<string, string> = {
   unlock: 'User unlocked. They can sign in again.',
 };
 
+const TEMPLATE_ACTIONS: Record<string, string> = {
+  publish: 'Template published. New reception checks use this version.',
+  archive: 'Template archived.',
+  restore: 'Template restored.',
+};
+
+const RECEPTION_ACTIONS: Record<string, string> = {
+  submit: 'Reception submitted.',
+  approve: 'Reception approved. The plant is Online.',
+  return: 'Reception returned for correction.',
+  cancel: 'Reception check cancelled.',
+};
+
 const DOCUMENT_ACTIONS: Record<string, string> = {
   verify: 'Document verified.',
   reject: 'Document rejected. Upload a new version to replace it.',
@@ -53,5 +66,11 @@ export const SUCCESS_MESSAGES: Record<string, SuccessMessage> = {
   replaceDocument: (_arg, result) =>
     `New version of ${result.documentType.name} uploaded. The earlier one is kept.`,
   documentAction: (arg) => DOCUMENT_ACTIONS[arg.action] ?? 'Done.',
+  createTemplate: (_arg, result) => `Template “${result.name}” created.`,
+  saveTemplateDraft: 'Draft saved.',
+  templateAction: (arg) => TEMPLATE_ACTIONS[arg.action] ?? 'Done.',
+  assignReception: 'Reception check assigned.',
+  saveReceptionAnswers: 'Answers saved.',
+  receptionAction: (arg) => RECEPTION_ACTIONS[arg.action] ?? 'Done.',
   createPocCheck: 'Check created.',
 };
