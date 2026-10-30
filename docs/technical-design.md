@@ -141,5 +141,53 @@ build) and `npm run test:e2e` (browser journey; needs built apps).
 | Initial Figma design system and approved core user flows | The client Figma covers the sign-in screens, PIN entry, toasts and the header Quick actions; these are built to it. The other screens follow the CoreStock pattern in code (`packages/ui`: theme, tables, filter panel, forms, status badges, loader). Figma frames for those flows and client sign-off are still open. |
 | Development, staging and production environments         | Development (local) and production (Render + Supabase) are running. Staging deploys from the `staging` branch to its own Supabase project and Render services; see `docs/environments.md`.                                                                                                                              |
 | Seat-limit and expiry notifications (IAD-005, IAD-006)   | Shown in the app: Managers/Admins see "all seats in use" and an expiry warning 30 days ahead; the event is audited. Email delivery comes with the notifications milestone (Brevo).                                                                                                                                      |
-| Plant usage in the internal portal (IAD-004)             | User and storage usage are shown; the plant count is added when the plant register exists (Milestone 2).                                                                                                                                                                                                                |
+| Plant usage in the internal portal (IAD-004)             | Closed in Milestone 2: the portal shows a plant total per organisation, a count only (`organisation_plant_counts()`).                                                                                                                                                                                                   |
 | Web hosting on Vercel                                    | Needs a Vercel Pro team (the repository belongs to a private GitHub organisation); Render can host the two Next.js apps instead.                                                                                                                                                                                        |
+
+## 12. Milestone 2 design (FRD 7, 9, 12, 14, 19)
+
+- **Configuration and register.** Plant types, categories, companies, custom
+  fields, meter types and document types are tenant tables under the usual
+  `tenant_isolation` policy. System Asset IDs are unique per organisation;
+  Plant and Serial Numbers only warn.
+- **Lifecycle.** Status is one value (Pending Reception, Awaiting Approval,
+  Approved/Online, Restricted/Offline). Restriction reasons sit beside it and
+  archiving is a timestamp, so restoring returns the earlier status. Every
+  change is audited against the plant, which feeds its History tab.
+- **Documents.** Each upload is a version; earlier files and verification
+  history are kept. Status is worked out by database views from the current
+  version and today's date in the organisation's time zone, never stored.
+  Files are read only through the API after a scope check.
+- **Compliance.** A missing, expired or rejected mandatory document blocks
+  approval and restricts approved plant, on change and on an hourly sweep. An
+  override needs a reason and a review date.
+- **Reception.** Published template versions are frozen in the database. A
+  check pins the version it was assigned, and each submission is copied with
+  its answers, evidence and who gave them.
+- **Meters.** Corrections sit beside the reading, keeping the original value,
+  reason, person and time.
+- **Import.** An upload is stored as rows and creates nothing. Rows are checked
+  against configuration and the register, corrected in the app without
+  re-uploading, and created through the same path as a manual plant. New
+  records only; existing plant is never merged.
+
+## 13. Milestone 2 acceptance evidence
+
+| ITDR acceptance criterion                                         | Evidence                                                              |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Operative creates Pending Reception plant and submits reception   | `reception.int-spec.ts`                                               |
+| Plant lifecycle follows the FRD                                   | `plants.int-spec.ts`, `reception.int-spec.ts`                         |
+| Duplicate System Asset ID blocked                                 | `plants.int-spec.ts`, `imports.int-spec.ts`                           |
+| Plant Number and Serial Number only warn                          | `plants.int-spec.ts`, `imports.int-spec.ts`                           |
+| Missing or expired mandatory document prevents approval           | `documents.int-spec.ts`, `reception.int-spec.ts`, browser test        |
+| Successful reception goes Online; configured failure goes Offline | `reception.int-spec.ts`, browser test `e2e/tests/milestone-2.spec.ts` |
+| Plant workflow actions audited                                    | `meters.int-spec.ts`, `reception.int-spec.ts`, browser test (History) |
+| Import preview, validation, corrections and error report          | `imports.int-spec.ts`                                                 |
+| Plant data and files isolated between organisations               | `plant-isolation.int-spec.ts`, `documents.int-spec.ts`                |
+
+## 14. Milestone 2 items open
+
+| Item               | Status                                                                                                                                                                     |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Staging sign-off   | Not yet deployed. Needs `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `WEB_APP_URL` on Render, then `db:migrate`; see `docs/environments.md`. |
+| Checks and Defects | Plant profile tabs are placeholders; a reception failure sets the plant Offline but raises no defect until the defects milestone.                                          |

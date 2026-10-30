@@ -75,6 +75,7 @@ interface OrganisationRow extends OrganisationEntity {
   activeUsers: number;
   lockedUsers: number;
   inactiveUsers: number;
+  plants: number;
   storedFiles: number;
   storageBytes: number;
 }
@@ -95,10 +96,12 @@ const ORGANISATION_SELECT = /* sql */ `
          coalesce(c.active_users, 0) as "activeUsers",
          coalesce(c.locked_users, 0) as "lockedUsers",
          coalesce(c.inactive_users, 0) as "inactiveUsers",
+         coalesce(p.plants, 0) as "plants",
          coalesce(s.files, 0) as "storedFiles",
          coalesce(s.bytes, 0)::float8 as "storageBytes"
     from corecheck.organisations o
     left join corecheck.organisation_user_counts() c on c.org_id = o.id
+    left join corecheck.organisation_plant_counts() p on p.org_id = o.id
     left join corecheck.organisation_storage_usage() s on s.org_id = o.id`;
 
 interface AdminRow {
@@ -494,6 +497,7 @@ export class OrganisationsService {
         lockedUsers: row.lockedUsers,
         inactiveUsers: row.inactiveUsers,
         seatsUsed: row.activeUsers + row.lockedUsers,
+        plants: row.plants,
         storedFiles: row.storedFiles,
         storageBytes: row.storageBytes,
       },

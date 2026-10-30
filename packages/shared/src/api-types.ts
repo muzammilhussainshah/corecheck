@@ -424,6 +424,8 @@ export interface OrganisationUsage {
   lockedUsers: number;
   inactiveUsers: number;
   seatsUsed: number;
+  /** Plant not archived; a total only, never the records. */
+  plants: number;
   /** Uploaded files and their total size; counts only, never the files. */
   storedFiles: number;
   storageBytes: number;

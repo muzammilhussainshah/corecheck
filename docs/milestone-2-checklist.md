@@ -3,7 +3,7 @@
 Har kaam mukammal hone par yahan `[x]` lagta hai. `🔄` = abhi chal raha hai.
 Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
-**Abhi:** Phase 7 — Testing aur delivery 🔄
+**Abhi:** Milestone 2 ka code mukammal ✅ — sirf staging deploy + check baqi hai
 
 ---
 
@@ -93,25 +93,25 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
 ## Phase 7 — Testing aur delivery
 
-- [ ] Tenant isolation tests mein saare naye tables + files
-- [ ] Browser test: plant banao → document → reception → approve
-- [ ] Demo data: plants, documents, reception template
-- [ ] Design doc update + Milestone 2 acceptance evidence
-- [ ] Lint, typecheck, saare tests pass
-- [ ] Staging par deploy + check
+- [x] Tenant isolation tests mein saare naye tables + files
+- [x] Browser test: plant banao → document → reception → approve
+- [x] Demo data: plants, documents, reception template
+- [x] Design doc update + Milestone 2 acceptance evidence
+- [x] Lint, typecheck, saare tests pass
+- [ ] Staging par deploy + check — aap ke Render/Supabase settings ke baad hoga (neeche note)
 
 ---
 
 ## Acceptance criteria (ITDR)
 
-- [ ] Operative Pending Reception plant bana kar submit kar sake
-- [ ] Plant lifecycle FRD ke mutabiq
-- [ ] Duplicate System Asset ID block
-- [ ] Plant Number / Serial Number par sirf warning
-- [ ] Missing/expired mandatory document approval rokta hai
-- [ ] Kamyab reception → Online; configured failure → Offline
-- [ ] Plant workflow actions audit mein
-- [ ] Import: preview, validation, corrections, error report
+- [x] Operative Pending Reception plant bana kar submit kar sake
+- [x] Plant lifecycle FRD ke mutabiq
+- [x] Duplicate System Asset ID block
+- [x] Plant Number / Serial Number par sirf warning
+- [x] Missing/expired mandatory document approval rokta hai
+- [x] Kamyab reception → Online; configured failure → Offline
+- [x] Plant workflow actions audit mein
+- [x] Import: preview, validation, corrections, error report
 
 ---
 
@@ -135,3 +135,5 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - **Phase 4 mukammal ✅**
 - **Phase 5 mukammal ✅** Meter readings: manual aur reception se, latest cards, history, correction (reason ke sath, asli value mehfooz). 4 naye tests.
 - **Phase 6 mukammal ✅** Plant import: template, Excel/CSV upload, row preview, app ke andar correction, duplicate confirm, error report, import record. 5 naye tests; browser mein poora flow check.
+- Phase 7: tenant isolation test tamam naye tables + files par, demo data (plants, documents, reception template), browser test (plant → reception → document → approve → History), internal portal mein plant count, design doc + acceptance evidence.
+- **Staging abhi baqi:** Render par `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `WEB_APP_URL` set karne honge, phir branch staging par jayegi. Ye aap ke accounts se hoga.

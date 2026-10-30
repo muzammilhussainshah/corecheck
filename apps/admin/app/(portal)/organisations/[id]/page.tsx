@@ -184,6 +184,7 @@ export default function OrganisationPage() {
       label: 'Account dates',
       value: `${formatDate(org.startsOn)} – ${formatDate(org.expiresOn)}`,
     },
+    { label: 'Plant', value: plural(org.usage.plants, 'item') },
     {
       label: 'Storage',
       value: `${plural(org.usage.storedFiles, 'file')} · ${formatBytes(org.usage.storageBytes)}`,

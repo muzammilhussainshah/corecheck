@@ -21,10 +21,11 @@ import {
 import { newTotpSecret, totpUri } from '../platform/totp.js';
 import { provisionOrganisation } from '../platform/provisioning.js';
 import { generateUsername } from '../users/username.js';
+import { seedPlant } from './seed-plant.js';
 
 /**
  * Local demo data: a staff owner, one organisation with sites, teams, a user
- * for every standard role and some offline-sync checks. Development only —
+ * for every standard role, offline-sync checks and plant at each stage. Development only —
  * the credentials it prints are deliberately simple.
  *
  *   npm run seed:demo -w @corecheck/api
@@ -127,8 +128,12 @@ const run = async () => {
   try {
     await dataSource.transaction(async (manager) => {
       const staffSecret = await seedStaff(manager, hasher, secretBox);
-      if (await manager.findOneBy(OrganisationEntity, { name: ORG_NAME })) {
-        console.log(`"${ORG_NAME}" already exists; nothing to do.`);
+      const existing = await manager.findOneBy(OrganisationEntity, {
+        name: ORG_NAME,
+      });
+      if (existing) {
+        await seedPlant(manager, env, existing.id);
+        console.log(`"${ORG_NAME}" already exists; nothing else to do.`);
         return;
       }
 
@@ -257,6 +262,8 @@ const run = async () => {
           status: 'open',
         });
       }
+
+      await seedPlant(manager, env, orgId);
 
       console.log(
         `\nSeeded "${ORG_NAME}". Customer sign-ins (web :3100, mobile):`,
