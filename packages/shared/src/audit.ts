@@ -83,6 +83,7 @@ export const AUDIT_ACTIONS = {
   'plant.restored': 'Plant restored',
   'plant.exported': 'Plant register exported',
   'plant.imported': 'Plant imported',
+  'plant_settings.updated': 'Required plant details changed',
 
   // Documents (DOC-002..008)
   'document.uploaded': 'Document uploaded',

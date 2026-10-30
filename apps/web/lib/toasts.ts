@@ -72,8 +72,12 @@ export const SUCCESS_MESSAGES: Record<string, SuccessMessage> = {
   assignReception: 'Reception check assigned.',
   saveReceptionAnswers: 'Answers saved.',
   receptionAction: (arg) => RECEPTION_ACTIONS[arg.action] ?? 'Done.',
+  savePlantSettings: 'Required details saved.',
   uploadPlantImport: 'File checked. Review the rows below.',
-  updatePlantImportRow: 'Row checked again.',
+  updatePlantImportRow: (arg) =>
+    arg.skipped
+      ? 'Row left out. The existing plant stays as it is.'
+      : 'Row checked again.',
   commitPlantImport: (_arg, result) =>
     `${result.counts.imported} plant imported so far.`,
   recordMeterReading: 'Reading saved.',

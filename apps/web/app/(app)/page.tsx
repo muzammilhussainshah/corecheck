@@ -100,7 +100,7 @@ export default function DashboardPage() {
           icon={<IconMapPin size={20} />}
         />
         {seats && (
-          <Card withBorder shadow="xs" padding="md">
+          <Card withBorder shadow="xs" padding={16}>
             <Group justify="space-between" align="flex-start">
               <Box>
                 <Text c={COLORS.muted} fw={500} mb={8}>
@@ -143,7 +143,7 @@ export default function DashboardPage() {
           label="Coming next"
           value={
             <Text component="span" fz="sm" fw={500} c={COLORS.body}>
-              Plant reception, checks and Defects arrive in the next releases.
+              Checks and Defects arrive in the next release.
             </Text>
           }
           icon={<IconRocket size={20} />}

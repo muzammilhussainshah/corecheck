@@ -122,7 +122,12 @@ export default function DocumentsPage() {
       sortField: 'assetId',
       render: (row) => (
         <Stack gap={0}>
-          <Text fw={600} size="sm" c={COLORS.title}>
+          <Text
+            fw={600}
+            size="sm"
+            c={COLORS.title}
+            style={{ whiteSpace: 'nowrap' }}
+          >
             {row.plant.assetId}
           </Text>
           <Text size="xs" c={COLORS.muted}>

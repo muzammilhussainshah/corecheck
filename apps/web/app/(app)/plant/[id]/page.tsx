@@ -510,7 +510,10 @@ export default function PlantProfilePage() {
         }
         keepMounted={false}
       >
-        <Tabs.List mb="md">
+        <Tabs.List
+          mb="md"
+          style={{ flexWrap: 'nowrap', overflowX: 'auto', overflowY: 'hidden' }}
+        >
           <Tabs.Tab value="overview">Overview</Tabs.Tab>
           <Tabs.Tab value="reception">Reception</Tabs.Tab>
           <Tabs.Tab value="documents">Documents</Tabs.Tab>

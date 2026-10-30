@@ -376,18 +376,26 @@ export class ReceptionService {
 
     const offline = failed.filter((question) => question.offlineOnFail);
     const documents = await this.compliance.blockers(plant.id);
+    const missing = await this.plants.missingDetails(plant);
     const now = this.clock.now();
     let outcome: 'approved' | 'restricted' | 'awaiting_approval';
     let reasons: string[];
     if (offline.length > 0) {
       outcome = 'restricted';
       reasons = offline.map((question) => `Failed: ${question.text}`);
-    } else if (version.approvalMode === 'automatic' && documents.length === 0) {
+    } else if (
+      version.approvalMode === 'automatic' &&
+      documents.length === 0 &&
+      missing.length === 0
+    ) {
       outcome = 'approved';
       reasons = [];
     } else {
       outcome = 'awaiting_approval';
-      reasons = documents.map((document) => `Document not valid: ${document}`);
+      reasons = [
+        ...documents.map((document) => `Document not valid: ${document}`),
+        ...missing.map((detail) => `Missing plant information: ${detail}`),
+      ];
     }
 
     await this.db.insert(ReceptionSubmissionEntity, {

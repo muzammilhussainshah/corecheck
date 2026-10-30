@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Group,
+  Input,
   List,
   MultiSelect,
   NumberInput,
@@ -353,14 +354,13 @@ export function PlantForm({
           </Section>
 
           <Section title="Ownership">
-            <Stack gap={4}>
-              <Text size="sm" fw={500}>
-                Ownership{' '}
-                <Text span c="red">
-                  *
-                </Text>
-              </Text>
+            <Input.Wrapper
+              label="Ownership"
+              required
+              error={form.errors.ownership}
+            >
               <SegmentedControl
+                fullWidth
                 data={[
                   { value: 'owned', label: 'Owned' },
                   { value: 'hired', label: 'Hired' },
@@ -372,12 +372,7 @@ export function PlantForm({
                   form.setFieldValue('companyId', '');
                 }}
               />
-              {form.errors.ownership && (
-                <Text size="xs" c="red">
-                  {form.errors.ownership}
-                </Text>
-              )}
-            </Stack>
+            </Input.Wrapper>
             <Select
               label={
                 form.values.ownership === 'owned'

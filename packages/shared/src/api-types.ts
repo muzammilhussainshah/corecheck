@@ -700,8 +700,10 @@ export interface PlantImportRow {
   problems: string[];
   warnings: string[];
   confirmed: boolean;
-  /** The plant a duplicate matches, when the user may open it. */
+  /** The plant whose System Asset ID this row repeats. */
   existingPlant: { id: string; assetId: string; name: string } | null;
+  /** Plant with the same Plant Number or Serial Number (IPL-005). */
+  matches: Array<{ id: string; assetId: string; name: string }>;
   /** The plant this row created. */
   plant: { id: string; assetId: string; name: string } | null;
 }

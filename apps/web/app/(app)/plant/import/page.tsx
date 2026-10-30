@@ -25,13 +25,13 @@ import {
 import { downloadFile } from '../../../../lib/download';
 import { useSession } from '../../../../lib/session';
 
-const COLUMNS: Column<PlantImportSummary>[] = [
+const columnsFor = (tz?: string): Column<PlantImportSummary>[] => [
   { key: 'file', header: 'File', render: (row) => row.fileName },
   { key: 'by', header: 'Imported by', render: (row) => row.createdBy },
   {
     key: 'when',
     header: 'When',
-    render: (row) => formatDateTime(row.createdAt),
+    render: (row) => formatDateTime(row.createdAt, tz),
   },
   {
     key: 'imported',
@@ -50,7 +50,8 @@ const COLUMNS: Column<PlantImportSummary>[] = [
 /** Upload a plant file, and every earlier import (IMP-001, IMP-006). */
 export default function PlantImportPage() {
   const router = useRouter();
-  const { can } = useSession();
+  const { can, me } = useSession();
+  const columns = columnsFor(me?.organisation.timeZone);
   const allowed = can('plant.import');
   const { data, isLoading, error } = usePlantImportsQuery(undefined, {
     skip: !allowed,
@@ -138,7 +139,7 @@ export default function PlantImportPage() {
           ) : (
             <TableCard>
               <DataTable
-                columns={COLUMNS}
+                columns={columns}
                 rows={data ?? []}
                 rowKey={(row) => row.id}
                 loading={isLoading}

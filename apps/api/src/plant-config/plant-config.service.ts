@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { PlantSettings } from '@corecheck/shared';
 import type {
   EntityManager,
   ObjectLiteral,
@@ -34,6 +35,7 @@ import { fieldError, forbidden, notFound } from '../common/errors.js';
 import { parseWith } from '../common/validation.js';
 import {
   PlantCustomFieldEntity,
+  PlantSettingsEntity,
   DocumentTypeEntity,
   MeterTypeEntity,
   PlantCategoryEntity,
@@ -385,6 +387,40 @@ export class PlantConfigService {
    * Replaces the documents a plant type must hold (DOC-001). Archived
    * document types already required stay allowed; new ones must be active.
    */
+  /** Plant details the organisation makes mandatory (PLT-008). */
+  async plantSettings(auth: CustomerAuth): Promise<PlantSettings> {
+    this.require(auth, 'plant_config.manage');
+    const row = await this.db.findOneBy(PlantSettingsEntity, {
+      orgId: auth.orgId,
+    });
+    return { requiredFields: row?.requiredFields ?? [] };
+  }
+
+  async savePlantSettings(
+    auth: CustomerAuth,
+    input: PlantSettings,
+  ): Promise<PlantSettings> {
+    const before = await this.plantSettings(auth);
+    const requiredFields = [...new Set(input.requiredFields)];
+    await this.db.upsert(
+      PlantSettingsEntity,
+      { orgId: auth.orgId, requiredFields },
+      ['orgId'],
+    );
+    await this.audit.record(this.db, {
+      scope: 'tenant',
+      orgId: auth.orgId,
+      actor: userActor(auth),
+      action: 'plant_settings.updated',
+      entityType: 'plant_settings',
+      entityId: auth.orgId,
+      summary: 'Changed the plant details required before approval',
+      before,
+      after: { requiredFields },
+    });
+    return { requiredFields };
+  }
+
   async setRequiredDocuments(
     auth: CustomerAuth,
     plantTypeId: string,

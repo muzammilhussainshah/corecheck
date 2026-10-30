@@ -207,6 +207,83 @@ describe('Plant import (FRD 19)', () => {
     expect(done.counts.imported).toBe(1);
   });
 
+  it('takes disciplines from the file and rejects unknown ones (PLT-006, IMP-002)', async () => {
+    const name = `Disc ${uid()}`;
+    await org.admin.post('/disciplines', { name }).expect(201);
+    const header = `${HEADER},Disciplines`;
+    const csv = [
+      header,
+      `Fitted,Crane,Hired,Crane Hire,${siteName},,,,,${name}`,
+      `Unknown,Crane,Hired,Crane Hire,${siteName},,,,,Nope`,
+    ].join('\n');
+    const preview = (await upload(org.admin, csv).expect(201))
+      .body as PlantImportDetail;
+    expect(preview.rows.map((r) => r.status)).toEqual(['valid', 'invalid']);
+    expect(preview.rows[1]!.problems).toEqual([
+      'Discipline "Nope" was not found.',
+    ]);
+    const done = (
+      await org.admin.post(`/plant-imports/${preview.id}/commit`).expect(200)
+    ).body as PlantImportDetail;
+    const plant = (
+      await org.admin.get(`/plants/${done.rows[0]!.plant!.id}`).expect(200)
+    ).body as { disciplines: Array<{ name: string }> };
+    expect(plant.disciplines.map((d) => d.name)).toEqual([name]);
+  });
+
+  it('lists every matching plant and can use the existing one instead (IPL-005, IPL-006)', async () => {
+    const serialNumber = `SN-${uid()}`;
+    for (const label of ['One', 'Two'])
+      await org.admin
+        .post('/plants', {
+          name: `${label} ${uid()}`,
+          serialNumber,
+          plantTypeId: typeId,
+          ownership: 'hired',
+          companyId: hireId,
+          siteId,
+        })
+        .expect(201);
+    const csv = [
+      HEADER,
+      `Again,Crane,Hired,Crane Hire,${siteName},,,,${serialNumber}`,
+    ].join('\n');
+    const preview = (await upload(org.admin, csv).expect(201))
+      .body as PlantImportDetail;
+    expect(preview.rows[0]!.matches).toHaveLength(2);
+
+    const skipped = (
+      await org.admin
+        .patch(`/plant-imports/${preview.id}/rows/${preview.rows[0]!.id}`, {
+          skipped: true,
+        })
+        .expect(200)
+    ).body as PlantImportDetail;
+    expect(skipped.counts).toMatchObject({ skipped: 1, warning: 0 });
+    const done = (
+      await org.admin.post(`/plant-imports/${preview.id}/commit`).expect(200)
+    ).body as PlantImportDetail;
+    expect(done.counts.imported).toBe(0);
+    const report = await org.admin
+      .get(`/plant-imports/${preview.id}/report`)
+      .expect(200);
+    expect(report.text).not.toContain('Again');
+  });
+
+  it('never creates plant twice when an import is committed twice at once', async () => {
+    const name = `Twice ${uid()}`;
+    const preview = (
+      await upload(org.admin, [HEADER, row(name)].join('\n')).expect(201)
+    ).body as PlantImportDetail;
+    await Promise.all([
+      org.admin.post(`/plant-imports/${preview.id}/commit`).expect(200),
+      org.admin.post(`/plant-imports/${preview.id}/commit`).expect(200),
+    ]);
+    const list = (await org.admin.get(`/plants?search=${name}`).expect(200))
+      .body as Paginated<unknown>;
+    expect(list.total).toBe(1);
+  });
+
   it('refuses bad files and people without the permission', async () => {
     await upload(org.admin, 'Name\nx').expect(400);
     await upload(org.admin, HEADER).expect(400);

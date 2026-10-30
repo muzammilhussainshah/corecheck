@@ -258,7 +258,9 @@ export default function PlantRegisterPage() {
       sortField: 'site',
       render: (plant) => (
         <Stack gap={0}>
-          <Text size="sm">{plant.site.name}</Text>
+          <Text size="sm" style={{ whiteSpace: 'nowrap' }}>
+            {plant.site.name}
+          </Text>
           {plant.area && (
             <Text size="xs" c={COLORS.muted}>
               {plant.area.name}
@@ -431,7 +433,7 @@ export default function PlantRegisterPage() {
                 setSearch(value);
                 setPage(1);
               }}
-              placeholder="Search ID, number, serial or name"
+              placeholder="Search ID, number, serial, name, make or model"
               label="Search plant"
             />
             <FilterButton

@@ -169,7 +169,13 @@ build) and `npm run test:e2e` (browser journey; needs built apps).
 - **Import.** An upload is stored as rows and creates nothing. Rows are checked
   against configuration and the register, corrected in the app without
   re-uploading, and created through the same path as a manual plant. New
-  records only; existing plant is never merged.
+  records only; existing plant is never merged. A possible duplicate lists
+  every matching plant, and the row can be confirmed or left out in favour of
+  the existing plant.
+- **Required details.** Admin can make Plant Number, Serial Number, make or
+  model mandatory (`plant_settings`). They may still be added after
+  registration, but a missing one, or a missing required custom field, stops
+  automatic approval and is shown to the reviewer.
 
 ## 13. Milestone 2 acceptance evidence
 

@@ -297,11 +297,12 @@ export const StatCard = ({
       border: `1px solid ${selected ? 'var(--mantine-color-brand-5)' : COLORS.border}`,
       boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
       cursor: onClick ? 'pointer' : 'default',
+      gap: 8,
       width: '100%',
     }}
   >
-    <Box>
-      <Text c={COLORS.muted} fw={500} mb={8} style={{ whiteSpace: 'nowrap' }}>
+    <Box style={{ minWidth: 0 }}>
+      <Text c={COLORS.muted} fw={500} mb={8} lh={1.3}>
         {label}
       </Text>
       {typeof value === 'string' || typeof value === 'number' ? (
@@ -316,7 +317,9 @@ export const StatCard = ({
     </Box>
     {icon && (
       <Box
+        visibleFrom="sm"
         style={{
+          flexShrink: 0,
           width: 40,
           height: 40,
           borderRadius: 10,

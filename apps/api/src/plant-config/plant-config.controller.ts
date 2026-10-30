@@ -12,6 +12,8 @@ import {
 import type { z } from 'zod';
 import {
   listStructureQuerySchema,
+  type PlantSettings,
+  plantSettingsSchema,
   type PlantType,
   setRequiredDocumentsSchema,
 } from '@corecheck/shared';
@@ -53,6 +55,19 @@ export class PlantConfigController {
     body: z.output<typeof setRequiredDocumentsSchema>,
   ): Promise<PlantType> {
     return this.config.setRequiredDocuments(auth, id, body.documentTypeIds);
+  }
+
+  @Get('plant-settings')
+  plantSettings(@CurrentAuth() auth: CustomerAuth): Promise<PlantSettings> {
+    return this.config.plantSettings(auth);
+  }
+
+  @Put('plant-settings')
+  savePlantSettings(
+    @CurrentAuth() auth: CustomerAuth,
+    @ValidBody(plantSettingsSchema) body: PlantSettings,
+  ): Promise<PlantSettings> {
+    return this.config.savePlantSettings(auth, body);
   }
 
   @Get(':kind')

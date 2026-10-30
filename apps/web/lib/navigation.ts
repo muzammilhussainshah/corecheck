@@ -145,7 +145,7 @@ export const ADMIN_NAV: NavItem[] = [
     group: 'Plant',
   },
   {
-    label: 'Reception templates',
+    label: 'Templates',
     href: '/admin/templates',
     icon: IconClipboardList,
     anyOf: ['templates.manage'],

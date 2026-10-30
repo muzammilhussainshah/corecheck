@@ -7,6 +7,7 @@ import type {
   CustomValue,
   DocumentVerification,
   ImportRowStatus,
+  PlantDetailKey,
   OrganisationStatus,
   PlantCompanyKind,
   PlantOwnership,
@@ -647,7 +648,14 @@ export class PlantImportRowEntity {
   @Column('jsonb') warnings!: string[];
   @Column('boolean') confirmed!: boolean;
   @Column('uuid', { nullable: true }) existingPlantId!: string | null;
+  @Column('jsonb') matchingPlantIds!: string[];
   @Column('uuid', { nullable: true }) plantId!: string | null;
+}
+
+@Entity({ schema: SCHEMA, name: 'plant_settings' })
+export class PlantSettingsEntity {
+  @PrimaryColumn('uuid') orgId!: string;
+  @Column('jsonb') requiredFields!: PlantDetailKey[];
 }
 
 export const ENTITIES = [
@@ -691,4 +699,5 @@ export const ENTITIES = [
   MeterReadingCorrectionEntity,
   PlantImportEntity,
   PlantImportRowEntity,
+  PlantSettingsEntity,
 ];

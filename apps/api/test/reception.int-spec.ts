@@ -297,6 +297,30 @@ describe('Reception templates and plant reception (FRD 8, 10)', () => {
       ).toBe(true);
     });
 
+    it('does not approve automatically while mandatory plant details are missing (PLT-008, REC-007)', async () => {
+      await org.admin
+        .put('/config/plant-settings', { requiredFields: ['serialNumber'] })
+        .expect(200);
+      const templateId = await publishedTemplate('automatic');
+      const plant = await newPlant();
+      const check = await assign(plant.id, templateId);
+      await answerAll(operative.client, check.id);
+      const result = (
+        await operative.client
+          .post(`/receptions/${check.id}/submit`)
+          .expect(200)
+      ).body as PlantReception;
+      await org.admin
+        .put('/config/plant-settings', { requiredFields: [] })
+        .expect(200);
+      expect(result.current).toMatchObject({
+        status: 'submitted',
+        outcomeReasons: ['Missing plant information: Serial Number'],
+      });
+      expect((await plantOf(plant.id)).status).toBe('awaiting_approval');
+      await operative.client.get('/config/plant-settings').expect(403);
+    });
+
     it('takes plant Offline when a question set to do so fails (REC-AC-01)', async () => {
       const templateId = await publishedTemplate('automatic');
       const plant = await newPlant();

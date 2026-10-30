@@ -20,6 +20,7 @@ import {
   type restrictPlantSchema,
   type returnToServiceSchema,
   type updatePlantSchema,
+  PLANT_DETAIL_LABELS,
 } from '@corecheck/shared';
 import { listAuditEvents } from '../audit/audit-query.js';
 import { AuditService, userActor } from '../audit/audit.service.js';
@@ -40,6 +41,7 @@ import {
   PlantCategoryEntity,
   PlantCompanyEntity,
   PlantCustomFieldEntity,
+  PlantSettingsEntity,
   PlantDisciplineEntity,
   PlantEntity,
   PlantTypeEntity,
@@ -569,6 +571,33 @@ export class PlantsService {
     const plant = await this.db.findOneBy(PlantEntity, { id });
     if (!plant || !this.inScope(auth, plant.siteId)) throw notFound('Plant');
     return plant;
+  }
+
+  /**
+   * Mandatory details the plant still lacks (PLT-008, REC-007): those the
+   * organisation requires, and required custom fields added since it was
+   * registered.
+   */
+  async missingDetails(plant: PlantEntity): Promise<string[]> {
+    const settings = await this.db.findOneBy(PlantSettingsEntity, {
+      orgId: plant.orgId,
+    });
+    const fields = await this.db.find(PlantCustomFieldEntity, {
+      order: { sortOrder: 'ASC', label: 'ASC' },
+    });
+    return [
+      ...(settings?.requiredFields ?? [])
+        .filter((key) => !plant[key])
+        .map((key) => PLANT_DETAIL_LABELS[key]),
+      ...fields
+        .filter(
+          (field) =>
+            field.required &&
+            !field.archivedAt &&
+            (plant.customValues[field.id] ?? '') === '',
+        )
+        .map((field) => field.label),
+    ];
   }
 
   inScope(auth: CustomerAuth, siteId: string): boolean {

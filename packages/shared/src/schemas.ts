@@ -1,3 +1,4 @@
+import { PLANT_DETAILS } from './plant-import.js';
 import { z } from 'zod';
 import { isPermissionCode } from './permissions.js';
 import { newPinProblem, PIN_PATTERN } from './pin.js';
@@ -724,12 +725,21 @@ export type CorrectMeterReadingInput = z.input<
   typeof correctMeterReadingSchema
 >;
 
+// -------------------------------------------------------- plant settings
+
+export const plantSettingsSchema = z.object({
+  requiredFields: z.array(z.enum(PLANT_DETAILS)).max(PLANT_DETAILS.length),
+});
+export type PlantSettings = z.output<typeof plantSettingsSchema>;
+
 // ---------------------------------------------------------- plant import
 
 /** A correction to a row, and/or confirmation of a possible duplicate. */
 export const updateImportRowSchema = z.object({
   data: z.record(z.string().max(100), z.string().max(500)).optional(),
   confirmed: z.boolean().optional(),
+  /** Use the existing plant: the row is left out of the import. */
+  skipped: z.boolean().optional(),
 });
 export type UpdateImportRowInput = z.input<typeof updateImportRowSchema>;
 

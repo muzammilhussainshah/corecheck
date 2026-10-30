@@ -82,7 +82,7 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
 ## Phase 6 — Plant import
 
-- [x] Template download (Excel/CSV) valid values ke saath
+- [x] Template download (Excel) valid values ke saath
 - [x] Upload → row-level preview (missing, invalid, duplicate Asset ID block, Plant No./Serial warning)
 - [x] Sahi rows import; galat rows app mein theek karke dobara validate
 - [x] Error report download
@@ -137,3 +137,5 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - **Phase 6 mukammal ✅** Plant import: template, Excel/CSV upload, row preview, app ke andar correction, duplicate confirm, error report, import record. 5 naye tests; browser mein poora flow check.
 - Phase 7: tenant isolation test tamam naye tables + files par, demo data (plants, documents, reception template), browser test (plant → reception → document → approve → History), internal portal mein plant count, design doc + acceptance evidence.
 - **Staging abhi baqi:** Render par `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `WEB_APP_URL` set karne honge, phir branch staging par jayegi. Ye aap ke accounts se hoga.
+- **Cross-check (FRD se milaya):** import mein Disciplines column, saare matching plants ke links, "Use existing" (row chhor dena), 0-ready-rows ka message, double commit se bachao; mandatory plant details (Manage › Custom fields) jin ke baghair automatic approval nahi hota; import ka time ab organisation time zone mein. UI: Ownership label alignment, stat cards, mobile tabs ek line mein, register/documents mein ID aur site toot-te nahi, dashboard card alignment.
+- **Milestone 3 ke liye note (template engine):** single-selection sawal, template duplicate, naya version purane unstarted checks par lagana, conditional follow-up. Plan mein ye M3 ka hissa thay.

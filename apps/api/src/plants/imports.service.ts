@@ -23,6 +23,7 @@ import { Clock, dateInTimeZone } from '../common/clock.js';
 import { conflict, fieldError, forbidden, notFound } from '../common/errors.js';
 import {
   AreaEntity,
+  DisciplineEntity,
   PlantCategoryEntity,
   PlantCompanyEntity,
   PlantCustomFieldEntity,
@@ -91,12 +92,25 @@ const cellText = (value: ExcelJS.CellValue): string => {
   return String(value);
 };
 
+/** Rows above this one still waiting, in file order. */
+const rowsAbove = (rows: PlantImportRowEntity[], rowNumber: number) =>
+  rows
+    .filter(
+      (row) =>
+        row.rowNumber < rowNumber &&
+        row.status !== 'imported' &&
+        row.status !== 'skipped',
+    )
+    .sort((a, b) => a.rowNumber - b.rowNumber)
+    .map((row) => row.data);
+
 interface Lookups {
   types: PlantTypeEntity[];
   categories: PlantCategoryEntity[];
   companies: PlantCompanyEntity[];
   sites: SiteEntity[];
   areas: AreaEntity[];
+  disciplines: DisciplineEntity[];
   fields: PlantCustomFieldEntity[];
 }
 
@@ -105,6 +119,7 @@ interface Checked {
   problems: string[];
   warnings: string[];
   existingPlantId: string | null;
+  matchingPlantIds: string[];
   input: CreateInput | null;
 }
 
@@ -186,6 +201,10 @@ export class ImportsService {
         ),
       ],
       ['Category', active(lookups.categories).map((item) => item.name)],
+      [
+        'Disciplines (comma separated)',
+        active(lookups.disciplines).map((item) => item.name),
+      ],
       ...fields
         .filter((field) => field.fieldType === 'select')
         .map((field): [string, string[]] => [field.label, field.options]),
@@ -223,7 +242,9 @@ export class ImportsService {
       order: { rowNumber: 'ASC' },
     });
     const plantIds = rows.flatMap((row) =>
-      [row.plantId, row.existingPlantId].filter((v): v is string => !!v),
+      [row.plantId, row.existingPlantId, ...row.matchingPlantIds].filter(
+        (v): v is string => !!v,
+      ),
     );
     const plants = plantIds.length
       ? await this.db.findBy(PlantEntity, { id: In(plantIds) })
@@ -247,6 +268,9 @@ export class ImportsService {
         warnings: row.warnings,
         confirmed: row.confirmed,
         existingPlant: brief(row.existingPlantId),
+        matches: row.matchingPlantIds
+          .map(brief)
+          .filter((plant) => plant !== null),
         plant: brief(row.plantId),
       })),
     };
@@ -322,6 +346,7 @@ export class ImportsService {
         warnings: checked.warnings,
         confirmed: false,
         existingPlantId: checked.existingPlantId,
+        matchingPlantIds: checked.matchingPlantIds,
         plantId: null,
       });
     }
@@ -333,7 +358,7 @@ export class ImportsService {
     auth: CustomerAuth,
     importId: string,
     rowId: string,
-    input: { data?: RowData; confirmed?: boolean },
+    input: { data?: RowData; confirmed?: boolean; skipped?: boolean },
   ): Promise<PlantImportDetail> {
     this.require(auth);
     await this.load(importId);
@@ -344,6 +369,14 @@ export class ImportsService {
     if (!row) throw notFound('Row');
     if (row.status === 'imported')
       throw conflict('CONFLICT', 'This row has already been imported.');
+    if (input.skipped) {
+      await this.db.update(
+        PlantImportRowEntity,
+        { id: rowId },
+        { status: 'skipped' },
+      );
+      return this.get(auth, importId);
+    }
     const data = input.data
       ? Object.fromEntries(
           Object.entries(input.data)
@@ -352,7 +385,10 @@ export class ImportsService {
         )
       : row.data;
     const confirmed = input.confirmed ?? row.confirmed;
-    const others = await this.rowsAbove(importId, row.rowNumber);
+    const others = rowsAbove(
+      await this.db.find(PlantImportRowEntity, { where: { importId } }),
+      row.rowNumber,
+    );
     const checked = await this.check(
       auth,
       data,
@@ -371,6 +407,7 @@ export class ImportsService {
         problems: checked.problems,
         warnings: checked.warnings,
         existingPlantId: checked.existingPlantId,
+        matchingPlantIds: checked.matchingPlantIds,
       },
     );
     return this.get(auth, importId);
@@ -384,6 +421,11 @@ export class ImportsService {
     this.require(auth);
     if (!auth.permissions.has('plant.create')) throw forbidden();
     const record = await this.load(id);
+    // A second click or tab waits here, then finds the rows already imported.
+    await this.db.query(
+      'select id from corecheck.plant_import_rows where import_id = $1 for update',
+      [id],
+    );
     const rows = await this.db.find(PlantImportRowEntity, {
       where: { importId: id },
       order: { rowNumber: 'ASC' },
@@ -391,8 +433,8 @@ export class ImportsService {
     const lookups = await this.lookups();
     let imported = 0;
     for (const row of rows) {
-      if (row.status === 'imported') continue;
-      const others = await this.rowsAbove(id, row.rowNumber);
+      if (row.status === 'imported' || row.status === 'skipped') continue;
+      const others = rowsAbove(rows, row.rowNumber);
       const checked = await this.check(
         auth,
         row.data,
@@ -424,9 +466,11 @@ export class ImportsService {
           problems,
           warnings: checked.warnings,
           existingPlantId: checked.existingPlantId,
+          matchingPlantIds: checked.matchingPlantIds,
           plantId,
         },
       );
+      row.status = status;
     }
     if (imported > 0)
       await this.audit.record(this.db, {
@@ -445,7 +489,9 @@ export class ImportsService {
   /** Rows that did not go in, with what is wrong, as CSV (IMP-004). */
   async report(auth: CustomerAuth, id: string): Promise<FileOutput> {
     const detail = await this.get(auth, id);
-    const rows = detail.rows.filter((row) => row.status !== 'imported');
+    const rows = detail.rows.filter(
+      (row) => row.status !== 'imported' && row.status !== 'skipped',
+    );
     const header = [
       'Row',
       ...detail.columns.map((column) => column.label),
@@ -504,6 +550,7 @@ export class ImportsService {
       companies: await this.db.find(PlantCompanyEntity),
       sites: await this.db.find(SiteEntity),
       areas: await this.db.find(AreaEntity),
+      disciplines: await this.db.find(DisciplineEntity),
       fields: await this.db.find(PlantCustomFieldEntity),
     };
   }
@@ -529,17 +576,6 @@ export class ImportsService {
       table.push(cells);
     });
     return table;
-  }
-
-  /** Rows above this one that are still waiting, in file order. */
-  private async rowsAbove(importId: string, rowNumber: number) {
-    const rows = await this.db.find(PlantImportRowEntity, {
-      where: { importId },
-      order: { rowNumber: 'ASC' },
-    });
-    return rows
-      .filter((row) => row.rowNumber < rowNumber && row.status !== 'imported')
-      .map((row) => row.data);
   }
 
   /** Checks one row against the configuration and the register. */
@@ -609,6 +645,18 @@ export class ImportsService {
             'Area',
           )
         : undefined;
+
+    const disciplineIds: string[] = [];
+    for (const name of (data.disciplines ?? '').split(/[,;]/)) {
+      if (!name.trim()) continue;
+      const discipline = find(
+        lookups.disciplines,
+        (i) => i.name,
+        name.trim(),
+        'Discipline',
+      );
+      if (discipline) disciplineIds.push(discipline.id);
+    }
 
     const customValues: Record<string, CustomValue> = {};
     for (const field of lookups.fields) {
@@ -684,8 +732,6 @@ export class ImportsService {
       warnings.push(
         `Matches ${matches.outsideScope} plant at sites you are not assigned to.`,
       );
-    existingPlantId ??=
-      matches.plantNumber[0]?.id ?? matches.serialNumber[0]?.id ?? null;
 
     const status: ImportRowStatus = problems.length
       ? 'invalid'
@@ -697,6 +743,11 @@ export class ImportsService {
       problems,
       warnings,
       existingPlantId,
+      matchingPlantIds: [
+        ...new Set(
+          [...matches.plantNumber, ...matches.serialNumber].map((p) => p.id),
+        ),
+      ],
       input:
         status === 'valid' && type && company && site && ownership
           ? {
@@ -712,7 +763,7 @@ export class ImportsService {
               companyId: company.id,
               siteId: site.id,
               areaId: area?.id,
-              disciplineIds: [],
+              disciplineIds,
               customValues,
             }
           : null,
@@ -748,6 +799,7 @@ export class ImportsService {
           warning: count('warning'),
           invalid: count('invalid'),
           imported: count('imported'),
+          skipped: count('skipped'),
         },
       };
     });

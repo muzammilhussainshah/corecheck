@@ -25,6 +25,7 @@ import {
   type CorrectMeterReadingInput,
   type CreateMeterReadingInput,
   type PlantImportDetail,
+  type PlantSettings,
   type PlantImportSummary,
   type PlantMeters,
   type UpdateImportRowInput,
@@ -118,6 +119,7 @@ export const api = createApi({
   refetchOnFocus: true,
   tagTypes: [
     'Me',
+    'PlantSettings',
     'PlantImport',
     'User',
     'Seat',
@@ -497,6 +499,18 @@ export const api = createApi({
       }),
       providesTags: ['Document'],
     }),
+    plantSettings: build.query<PlantSettings, void>({
+      query: () => ({ url: '/config/plant-settings' }),
+      providesTags: ['PlantSettings'],
+    }),
+    savePlantSettings: build.mutation<PlantSettings, PlantSettings>({
+      query: (body) => ({
+        url: '/config/plant-settings',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['PlantSettings'],
+    }),
     plantImports: build.query<PlantImportSummary[], void>({
       query: () => ({ url: '/plant-imports' }),
       providesTags: ['PlantImport'],
@@ -777,6 +791,8 @@ export const {
   useAddReceptionPhotoMutation,
   useRemoveReceptionPhotoMutation,
   useReceptionActionMutation,
+  usePlantSettingsQuery,
+  useSavePlantSettingsMutation,
   usePlantImportsQuery,
   usePlantImportQuery,
   useUploadPlantImportMutation,

@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Alert,
   Anchor,
   Button,
   Group,
@@ -45,6 +46,7 @@ const TONES: Record<ImportRowStatus, Tone> = {
   warning: 'warning',
   invalid: 'danger',
   imported: 'neutral',
+  skipped: 'neutral',
 };
 
 const STATS: Array<{ status: ImportRowStatus; label: string }> = [
@@ -152,6 +154,7 @@ export default function PlantImportDetailPage() {
     {
       key: 'notes',
       header: 'Notes',
+      width: 300,
       render: (row) => (
         <Stack gap={2}>
           {[...row.problems, ...row.warnings].map((note) => (
@@ -159,15 +162,20 @@ export default function PlantImportDetailPage() {
               {note}
             </Text>
           ))}
-          {row.existingPlant && row.status !== 'imported' && (
-            <Anchor
-              component={Link}
-              href={`/plant/${row.existingPlant.id}`}
-              size="sm"
-            >
-              Open {row.existingPlant.assetId}
-            </Anchor>
-          )}
+          {row.status !== 'imported' &&
+            [
+              ...(row.existingPlant ? [row.existingPlant] : []),
+              ...row.matches,
+            ].map((plant) => (
+              <Anchor
+                key={plant.id}
+                component={Link}
+                href={`/plant/${plant.id}`}
+                size="sm"
+              >
+                Open {plant.assetId}
+              </Anchor>
+            ))}
           {row.plant && (
             <Anchor component={Link} href={`/plant/${row.plant.id}`} size="sm">
               {row.plant.assetId}
@@ -181,7 +189,7 @@ export default function PlantImportDetailPage() {
       header: '',
       align: 'right',
       render: (row) =>
-        row.status === 'imported' ? null : (
+        row.status === 'imported' || row.status === 'skipped' ? null : (
           <Group gap="xs" justify="flex-end" wrap="nowrap">
             {row.status === 'warning' && (
               <Button
@@ -198,6 +206,17 @@ export default function PlantImportDetailPage() {
             <Button size="xs" variant="default" onClick={() => setEditing(row)}>
               Correct
             </Button>
+            {(row.existingPlant ?? row.matches[0]) && (
+              <Button
+                size="xs"
+                variant="default"
+                onClick={() =>
+                  void update({ importId: id, rowId: row.id, skipped: true })
+                }
+              >
+                Use existing
+              </Button>
+            )}
           </Group>
         ),
     },
@@ -205,6 +224,7 @@ export default function PlantImportDetailPage() {
 
   const { counts } = data;
   const waiting = counts.warning + counts.invalid;
+  const finished = waiting === 0 && counts.valid === 0;
 
   return (
     <Stack gap="lg">
@@ -215,7 +235,11 @@ export default function PlantImportDetailPage() {
           { label: data.fileName },
         ]}
         title={data.fileName}
-        description="Rows that need attention stay here until they are corrected, so you never upload the file again."
+        description={
+          finished
+            ? 'Every row of this file has been dealt with.'
+            : 'Rows that need attention stay here until they are corrected, so you never upload the file again.'
+        }
         actions={
           <Group gap="sm">
             {waiting > 0 && (
@@ -232,7 +256,7 @@ export default function PlantImportDetailPage() {
                 Error report
               </Button>
             )}
-            {can('plant.create') && (
+            {can('plant.create') && !finished && (
               <Button
                 leftSection={<IconFileImport size={16} />}
                 disabled={counts.valid === 0}
@@ -248,6 +272,11 @@ export default function PlantImportDetailPage() {
           </Group>
         }
       />
+      {counts.valid === 0 && waiting > 0 && (
+        <Alert color="yellow" title="No rows are ready to import">
+          Correct the rows below, or confirm the possible duplicates.
+        </Alert>
+      )}
       <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
         {STATS.map(({ status, label }) => (
           <StatCard
