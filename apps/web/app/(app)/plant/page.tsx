@@ -17,6 +17,7 @@ import {
   IconCircleCheck,
   IconClockHour4,
   IconDownload,
+  IconFileImport,
   IconHourglass,
   IconPlus,
   IconQrcode,
@@ -386,6 +387,15 @@ export default function PlantRegisterPage() {
                   )}
                 </Menu.Dropdown>
               </Menu>
+            )}
+            {can('plant.import') && (
+              <Button
+                variant="default"
+                leftSection={<IconFileImport size={16} />}
+                onClick={() => router.push('/plant/import')}
+              >
+                Import
+              </Button>
             )}
             {can('plant.create') && (
               <Button

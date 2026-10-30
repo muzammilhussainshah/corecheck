@@ -41,7 +41,7 @@ const LABEL_LIMIT = 500;
 const safeCell = (value: string): string =>
   /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 
-const csvCell = (value: string): string => {
+export const csvCell = (value: string): string => {
   const safe = safeCell(value);
   return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 };

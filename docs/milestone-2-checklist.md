@@ -3,7 +3,7 @@
 Har kaam mukammal hone par yahan `[x]` lagta hai. `🔄` = abhi chal raha hai.
 Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
-**Abhi:** Phase 6 — Plant import 🔄
+**Abhi:** Phase 7 — Testing aur delivery 🔄
 
 ---
 
@@ -82,14 +82,14 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 
 ## Phase 6 — Plant import
 
-- [ ] Template download (Excel/CSV) valid values ke saath
-- [ ] Upload → row-level preview (missing, invalid, duplicate Asset ID block, Plant No./Serial warning)
-- [ ] Sahi rows import; galat rows app mein theek karke dobara validate
-- [ ] Error report download
-- [ ] Import record: kis ne, kab, file, row outcomes, bane plant IDs
-- [ ] Sirf naye plant (update/merge nahi)
-- [ ] Web: Import wizard
-- [ ] Tests: import
+- [x] Template download (Excel/CSV) valid values ke saath
+- [x] Upload → row-level preview (missing, invalid, duplicate Asset ID block, Plant No./Serial warning)
+- [x] Sahi rows import; galat rows app mein theek karke dobara validate
+- [x] Error report download
+- [x] Import record: kis ne, kab, file, row outcomes, bane plant IDs
+- [x] Sirf naye plant (update/merge nahi)
+- [x] Web: Import wizard
+- [x] Tests: import
 
 ## Phase 7 — Testing aur delivery
 
@@ -134,3 +134,4 @@ Branch: `milestone2`. Scope: ITDR Milestone 2 + FRD sections 7, 8, 9, 14, 19.2.
 - Phase 4 web mukammal: Manage mein Reception templates (builder, publish, naya version), plant ka Reception tab (assign, jawab, photos, submit, approve, return, cancel, submissions). Browser mein poora flow check kiya; missing LOLER par Approve ruk gaya.
 - **Phase 4 mukammal ✅**
 - **Phase 5 mukammal ✅** Meter readings: manual aur reception se, latest cards, history, correction (reason ke sath, asli value mehfooz). 4 naye tests.
+- **Phase 6 mukammal ✅** Plant import: template, Excel/CSV upload, row preview, app ke andar correction, duplicate confirm, error report, import record. 5 naye tests; browser mein poora flow check.

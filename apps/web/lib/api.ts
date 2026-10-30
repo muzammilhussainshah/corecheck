@@ -24,7 +24,10 @@ import {
   type CheckTemplateDetail,
   type CorrectMeterReadingInput,
   type CreateMeterReadingInput,
+  type PlantImportDetail,
+  type PlantImportSummary,
   type PlantMeters,
+  type UpdateImportRowInput,
   type CheckTemplateSummary,
   type CreatePlantInput,
   type CreateTemplateInput,
@@ -115,6 +118,7 @@ export const api = createApi({
   refetchOnFocus: true,
   tagTypes: [
     'Me',
+    'PlantImport',
     'User',
     'Seat',
     'Role',
@@ -493,6 +497,33 @@ export const api = createApi({
       }),
       providesTags: ['Document'],
     }),
+    plantImports: build.query<PlantImportSummary[], void>({
+      query: () => ({ url: '/plant-imports' }),
+      providesTags: ['PlantImport'],
+    }),
+    plantImport: build.query<PlantImportDetail, string>({
+      query: (id) => ({ url: `/plant-imports/${id}` }),
+      providesTags: ['PlantImport'],
+    }),
+    uploadPlantImport: build.mutation<PlantImportDetail, FormData>({
+      query: (form) => ({ url: '/plant-imports', method: 'POST', body: form }),
+      invalidatesTags: ['PlantImport'],
+    }),
+    updatePlantImportRow: build.mutation<
+      PlantImportDetail,
+      { importId: string; rowId: string } & UpdateImportRowInput
+    >({
+      query: ({ importId, rowId, ...body }) => ({
+        url: `/plant-imports/${importId}/rows/${rowId}`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['PlantImport'],
+    }),
+    commitPlantImport: build.mutation<PlantImportDetail, string>({
+      query: (id) => ({ url: `/plant-imports/${id}/commit`, method: 'POST' }),
+      invalidatesTags: ['PlantImport', 'Plant'],
+    }),
     uploadDocument: build.mutation<
       PlantDocument,
       { plantId: string; form: FormData }
@@ -746,6 +777,11 @@ export const {
   useAddReceptionPhotoMutation,
   useRemoveReceptionPhotoMutation,
   useReceptionActionMutation,
+  usePlantImportsQuery,
+  usePlantImportQuery,
+  useUploadPlantImportMutation,
+  useUpdatePlantImportRowMutation,
+  useCommitPlantImportMutation,
   usePlantMetersQuery,
   useRecordMeterReadingMutation,
   useCorrectMeterReadingMutation,

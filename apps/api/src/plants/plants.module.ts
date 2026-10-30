@@ -4,6 +4,8 @@ import { ComplianceSweepService } from './compliance-sweep.service.js';
 import { ComplianceService } from './compliance.service.js';
 import { DocumentsController } from './documents.controller.js';
 import { DocumentsService } from './documents.service.js';
+import { ImportsController } from './imports.controller.js';
+import { ImportsService } from './imports.service.js';
 import { MetersController } from './meters.controller.js';
 import { MetersService } from './meters.service.js';
 import { PlantOutputService } from './plant-output.service.js';
@@ -19,6 +21,7 @@ import { ReceptionService } from './reception.service.js';
     DocumentsController,
     ReceptionController,
     MetersController,
+    ImportsController,
   ],
   providers: [
     PlantsService,
@@ -28,6 +31,7 @@ import { ReceptionService } from './reception.service.js';
     DocumentsService,
     ReceptionService,
     MetersService,
+    ImportsService,
   ],
   exports: [PlantsService, ComplianceService, ComplianceSweepService],
 })

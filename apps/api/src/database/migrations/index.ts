@@ -5,6 +5,7 @@ import { PlantRegister1760800000000 } from './1760800000000-plant-register.js';
 import { PlantDocuments1760900000000 } from './1760900000000-plant-documents.js';
 import { Reception1761000000000 } from './1761000000000-reception.js';
 import { MeterReadings1761100000000 } from './1761100000000-meter-readings.js';
+import { PlantImports1761200000000 } from './1761200000000-plant-imports.js';
 
 /** Every migration, oldest first. Listed explicitly so the ESM build needs no globbing. */
 export const MIGRATIONS = [
@@ -15,4 +16,5 @@ export const MIGRATIONS = [
   PlantDocuments1760900000000,
   Reception1761000000000,
   MeterReadings1761100000000,
+  PlantImports1761200000000,
 ];

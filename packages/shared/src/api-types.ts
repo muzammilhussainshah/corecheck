@@ -1,5 +1,6 @@
 import type { ErrorCode } from './errors.js';
 import type { PermissionCode } from './permissions.js';
+import type { ImportRowStatus } from './plant-import.js';
 import type { PocCheckStatus, PocQuestionKey } from './poc.js';
 import type { AnswerValue, TemplateQuestion } from './reception.js';
 import type { StandardRoleKey } from './roles.js';
@@ -675,4 +676,35 @@ export interface PlantMeters {
   /** Every reading, newest first (MTR-006). */
   readings: MeterReading[];
   capabilities: { record: boolean };
+}
+
+// ---------------------------------------------------------- plant import
+
+export interface PlantImportSummary {
+  id: string;
+  fileName: string;
+  createdBy: string;
+  createdAt: string;
+  counts: Record<ImportRowStatus, number>;
+}
+
+export interface PlantImportRow {
+  id: string;
+  /** The row in the uploaded spreadsheet. */
+  rowNumber: number;
+  /** Values by column key; custom fields are "custom:<id>". */
+  data: Record<string, string>;
+  status: ImportRowStatus;
+  problems: string[];
+  warnings: string[];
+  confirmed: boolean;
+  /** The plant a duplicate matches, when the user may open it. */
+  existingPlant: { id: string; assetId: string; name: string } | null;
+  /** The plant this row created. */
+  plant: { id: string; assetId: string; name: string } | null;
+}
+
+export interface PlantImportDetail extends PlantImportSummary {
+  columns: Array<{ key: string; label: string; required: boolean }>;
+  rows: PlantImportRow[];
 }

@@ -6,6 +6,7 @@ import type {
   CustomFieldType,
   CustomValue,
   DocumentVerification,
+  ImportRowStatus,
   OrganisationStatus,
   PlantCompanyKind,
   PlantOwnership,
@@ -622,6 +623,33 @@ export class MeterReadingCorrectionEntity {
   correctedAt!: Date;
 }
 
+// --------------------------------------------------- plant imports (M2)
+
+@Entity({ schema: SCHEMA, name: 'plant_imports' })
+export class PlantImportEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') fileName!: string;
+  @Column('uuid') createdBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'plant_import_rows' })
+export class PlantImportRowEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') importId!: string;
+  @Column('integer') rowNumber!: number;
+  @Column('jsonb') data!: Record<string, string>;
+  @Column('text') status!: ImportRowStatus;
+  @Column('jsonb') problems!: string[];
+  @Column('jsonb') warnings!: string[];
+  @Column('boolean') confirmed!: boolean;
+  @Column('uuid', { nullable: true }) existingPlantId!: string | null;
+  @Column('uuid', { nullable: true }) plantId!: string | null;
+}
+
 export const ENTITIES = [
   OrganisationEntity,
   RoleEntity,
@@ -661,4 +689,6 @@ export const ENTITIES = [
   ReceptionSubmissionEntity,
   MeterReadingEntity,
   MeterReadingCorrectionEntity,
+  PlantImportEntity,
+  PlantImportRowEntity,
 ];

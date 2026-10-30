@@ -724,6 +724,15 @@ export type CorrectMeterReadingInput = z.input<
   typeof correctMeterReadingSchema
 >;
 
+// ---------------------------------------------------------- plant import
+
+/** A correction to a row, and/or confirmation of a possible duplicate. */
+export const updateImportRowSchema = z.object({
+  data: z.record(z.string().max(100), z.string().max(500)).optional(),
+  confirmed: z.boolean().optional(),
+});
+export type UpdateImportRowInput = z.input<typeof updateImportRowSchema>;
+
 // ------------------------------------------------------------------ audit
 
 export const listAuditQuerySchema = paginationQuerySchema.extend({
