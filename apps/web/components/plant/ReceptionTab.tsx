@@ -198,7 +198,17 @@ function ReturnModal({
 }
 
 /** One reception check: the answers, evidence and what can be done next. */
-function CheckView({ check }: { check: ReceptionCheck }) {
+function CheckView({
+  check,
+  plantStatus,
+}: {
+  check: ReceptionCheck;
+  plantStatus: PlantDetail['status'];
+}) {
+  // Passed, but held out of use until its mandatory documents are valid
+  // (DOC-004, REC-AC-02); approving then brings it Online.
+  const heldOffline =
+    check.status === 'submitted' && plantStatus === 'restricted';
   const { me } = useSession();
   const tz = me?.organisation.timeZone;
   const { data: meters } = useConfigList('meter-types', {
@@ -267,7 +277,13 @@ function CheckView({ check }: { check: ReceptionCheck }) {
           <Stack gap={2}>
             <Group gap="sm">
               <Title order={4}>{check.template.name}</Title>
-              <ReceptionBadge status={check.status} />
+              {heldOffline ? (
+                // Passed but held out of use: never shown as Awaiting
+                // Approval (DOC-004, REC-AC-02).
+                <Pill tone="danger">Restricted/Offline: documents needed</Pill>
+              ) : (
+                <ReceptionBadge status={check.status} />
+              )}
             </Group>
             <Text size="sm" c={COLORS.muted}>
               Version {check.template.version} · assigned by {check.assignedBy}{' '}
@@ -330,11 +346,15 @@ function CheckView({ check }: { check: ReceptionCheck }) {
         {check.outcomeReasons.length > 0 && (
           <Alert
             mt="md"
-            color={check.status === 'restricted' ? 'red' : 'yellow'}
+            color={
+              check.status === 'restricted' || heldOffline ? 'red' : 'yellow'
+            }
             title={
               check.status === 'restricted'
                 ? 'Reception failed'
-                : 'Needs attention before approval'
+                : heldOffline
+                  ? 'Restricted/Offline until approved'
+                  : 'Needs attention before approval'
             }
           >
             <Stack gap={2}>
@@ -343,6 +363,12 @@ function CheckView({ check }: { check: ReceptionCheck }) {
                   {reason}
                 </Text>
               ))}
+              {heldOffline && (
+                <Text size="sm" mt={4}>
+                  The plant stays Restricted/Offline until every mandatory
+                  document is valid and verified and the reception is approved.
+                </Text>
+              )}
             </Stack>
           </Alert>
         )}
@@ -609,6 +635,7 @@ export function ReceptionTab({ plant }: { plant: PlantDetail }) {
         <CheckView
           key={`${current.id}-${current.status}-${current.submissions.length}`}
           check={current}
+          plantStatus={plant.status}
         />
       ) : (
         !capabilities.assign && (

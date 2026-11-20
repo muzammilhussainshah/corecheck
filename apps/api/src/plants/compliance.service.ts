@@ -111,10 +111,11 @@ export class ComplianceService {
   }
 
   /**
-   * Takes approved plant out of use when its mandatory documents are no
-   * longer valid (DOC-AC-01). Runs after every document change and on a
-   * schedule for expiry; `plantIds` narrows it to the plant just changed.
-   * Lifting the restriction stays a deliberate return to service.
+   * Takes approved plant, and plant awaiting approval, out of use when its
+   * mandatory documents are no longer valid (DOC-AC-01, DOC-004, REC-AC-02).
+   * Runs after every document change and on a schedule for expiry;
+   * `plantIds` narrows it to the plant just changed. Lifting the restriction
+   * stays deliberate: a return to service, or approving the reception.
    */
   async enforce(actor: AuditActor, plantIds?: string[]): Promise<number> {
     const params: unknown[] = [];
@@ -128,7 +129,8 @@ export class ComplianceService {
       `select p.id
          from corecheck.plants p
          join corecheck.organisations o on o.id = p.org_id
-        where p.status = 'approved' and p.archived_at is null ${narrow}
+        where p.status in ('approved', 'awaiting_approval')
+          and p.archived_at is null ${narrow}
           and (p.compliance_override_until is null
                or p.compliance_override_until < (now() at time zone o.time_zone)::date)
           and exists (select 1 from corecheck.plant_requirement_states r

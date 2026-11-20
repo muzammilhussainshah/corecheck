@@ -429,58 +429,141 @@ describe('Reception templates and plant reception (FRD 8, 10)', () => {
       expect((await plantOf(plant.id)).status).toBe('approved');
     });
 
-    it('holds approval until mandatory documents are valid (DOC-006, REC-AC-02)', async () => {
-      const docTypeId = (
-        (
-          await org.admin
-            .post('/config/document-types', { name: `Insurance ${uid()}` })
+    describe('with a mandatory document (DOC-004, DOC-006, REC-AC-02)', () => {
+      /** A plant type requiring one document; returns both ids. */
+      const strictPlantType = async () => {
+        const docTypeId = (
+          (
+            await org.admin
+              .post('/config/document-types', { name: `Insurance ${uid()}` })
+              .expect(201)
+          ).body as { id: string }
+        ).id;
+        const plantTypeId = (
+          (
+            await org.admin
+              .post('/config/plant-types', { name: `Strict ${uid()}` })
+              .expect(201)
+          ).body as { id: string }
+        ).id;
+        await org.admin
+          .put(`/config/plant-types/${plantTypeId}/required-documents`, {
+            documentTypeIds: [docTypeId],
+          })
+          .expect(200);
+        return { docTypeId, plantTypeId };
+      };
+
+      const uploadVerified = async (plantId: string, docTypeId: string) => {
+        const doc = (
+          await operative.client
+            .post(`/plants/${plantId}/documents`)
+            .field('documentTypeId', docTypeId)
+            .field('expiresOn', '2099-01-01')
+            .attach('file', PDF, { filename: 'policy.pdf' })
             .expect(201)
-        ).body as { id: string }
-      ).id;
-      const strictType = (
+        ).body as { id: string };
+        await supervisor.client.post(`/documents/${doc.id}/verify`).expect(200);
+        return doc.id;
+      };
+
+      const historyOf = async (plantId: string) =>
         (
-          await org.admin
-            .post('/config/plant-types', { name: `Strict ${uid()}` })
-            .expect(201)
-        ).body as { id: string }
-      ).id;
-      await org.admin
-        .put(`/config/plant-types/${strictType}/required-documents`, {
-          documentTypeIds: [docTypeId],
-        })
-        .expect(200);
-      const templateId = await publishedTemplate('automatic');
-      const plant = await newPlant(operative.client, strictType);
-      const check = await assign(plant.id, templateId);
-      await answerAll(operative.client, check.id);
-      const result = (
+          (await org.admin.get(`/plants/${plantId}/history`).expect(200))
+            .body as { items: Array<{ action: string; summary: string }> }
+        ).items;
+
+      it.each(['automatic', 'manual'] as const)(
+        'puts passed plant Restricted/Offline while the document is missing, and Online once it is valid and approved (%s approval)',
+        async (mode) => {
+          const { docTypeId, plantTypeId } = await strictPlantType();
+          const templateId = await publishedTemplate(mode);
+          const plant = await newPlant(operative.client, plantTypeId);
+          const check = await assign(plant.id, templateId);
+          await answerAll(operative.client, check.id);
+          const result = (
+            await operative.client
+              .post(`/receptions/${check.id}/submit`)
+              .expect(200)
+          ).body as PlantReception;
+
+          // Passed, still waiting for a reviewer, but out of use meanwhile.
+          expect(result.current!.status).toBe('submitted');
+          expect(result.current!.outcomeReasons).toEqual([
+            expect.stringMatching(
+              /^Document not valid: Insurance .* \(Missing\)$/,
+            ),
+          ]);
+          const restricted = await plantOf(plant.id);
+          expect(restricted.status).toBe('restricted');
+          expect(restricted.statusNote).toMatch(
+            /^Mandatory documents not valid: Insurance .* \(Missing\)$/,
+          );
+          const history = await historyOf(plant.id);
+          expect(history.map((event) => event.action)).toContain(
+            'plant.restricted',
+          );
+
+          // Counted with Restricted/Offline plant in the register.
+          const register = (
+            await org.admin
+              .get(`/plants?status=restricted&search=${restricted.assetId}`)
+              .expect(200)
+          ).body as { items: Array<{ id: string }> };
+          expect(register.items.map((item) => item.id)).toContain(plant.id);
+
+          const blocked = await supervisor.client
+            .post(`/receptions/${check.id}/approve`)
+            .expect(409);
+          expect(blocked.body.code).toBe('DOCUMENTS_NOT_VALID');
+          expect((await plantOf(plant.id)).status).toBe('restricted');
+
+          await uploadVerified(plant.id, docTypeId);
+          // A valid document alone does not bring it Online: approval does.
+          expect((await plantOf(plant.id)).status).toBe('restricted');
+          await supervisor.client
+            .post(`/receptions/${check.id}/approve`)
+            .expect(200);
+          expect((await plantOf(plant.id)).status).toBe('approved');
+        },
+      );
+
+      it('goes Awaiting Approval when the document is already valid', async () => {
+        const { docTypeId, plantTypeId } = await strictPlantType();
+        const templateId = await publishedTemplate('manual');
+        const plant = await newPlant(operative.client, plantTypeId);
+        await uploadVerified(plant.id, docTypeId);
+        const check = await assign(plant.id, templateId);
+        await answerAll(operative.client, check.id);
         await operative.client
           .post(`/receptions/${check.id}/submit`)
-          .expect(200)
-      ).body as PlantReception;
-      // Passed, but no automatic approval without the document.
-      expect(result.current!.status).toBe('submitted');
-      expect(result.current!.outcomeReasons[0]).toMatch(/Document not valid/);
-      expect((await plantOf(plant.id)).status).toBe('awaiting_approval');
+          .expect(200);
+        expect((await plantOf(plant.id)).status).toBe('awaiting_approval');
+      });
 
-      const blocked = await supervisor.client
-        .post(`/receptions/${check.id}/approve`)
-        .expect(409);
-      expect(blocked.body.code).toBe('DOCUMENTS_NOT_VALID');
-
-      const doc = (
+      it('restricts plant awaiting approval when its document stops being valid', async () => {
+        const { docTypeId, plantTypeId } = await strictPlantType();
+        const templateId = await publishedTemplate('manual');
+        const plant = await newPlant(operative.client, plantTypeId);
+        const docId = await uploadVerified(plant.id, docTypeId);
+        const check = await assign(plant.id, templateId);
+        await answerAll(operative.client, check.id);
         await operative.client
-          .post(`/plants/${plant.id}/documents`)
-          .field('documentTypeId', docTypeId)
-          .field('expiresOn', '2099-01-01')
-          .attach('file', PDF, { filename: 'policy.pdf' })
-          .expect(201)
-      ).body as { id: string };
-      await supervisor.client.post(`/documents/${doc.id}/verify`).expect(200);
-      await supervisor.client
-        .post(`/receptions/${check.id}/approve`)
-        .expect(200);
-      expect((await plantOf(plant.id)).status).toBe('approved');
+          .post(`/receptions/${check.id}/submit`)
+          .expect(200);
+        expect((await plantOf(plant.id)).status).toBe('awaiting_approval');
+
+        await supervisor.client
+          .post(`/documents/${docId}/reject`, { reason: 'Wrong plant' })
+          .expect(200);
+        const after = await plantOf(plant.id);
+        expect(after.status).toBe('restricted');
+        expect(after.statusNote).toMatch(/\(Rejected\)$/);
+        const blocked = await supervisor.client
+          .post(`/receptions/${check.id}/approve`)
+          .expect(409);
+        expect(blocked.body.code).toBe('DOCUMENTS_NOT_VALID');
+      });
     });
 
     it('keeps the template version a check started from (REC-008, TMP-AC-03)', async () => {

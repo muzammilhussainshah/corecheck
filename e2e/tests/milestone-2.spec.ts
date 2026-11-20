@@ -36,7 +36,8 @@ test('Milestone 2: register plant, hold its certificate, pass reception, approve
   await page.waitForURL(/\/plant\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Pending Reception').first()).toBeVisible();
 
-  // Reception answered with no certificate: approval is blocked.
+  // Reception passed with no certificate: the plant goes Restricted/Offline
+  // at once and approval is blocked (DOC-004, REC-AC-02).
   await page.getByRole('tab', { name: 'Reception' }).click();
   await page.getByRole('combobox').first().click();
   await page.getByRole('option', { name: /Standard reception/ }).click();
@@ -45,7 +46,15 @@ test('Milestone 2: register plant, hold its certificate, pass reception, approve
   for (const answer of await page.getByText('Yes', { exact: true }).all())
     await answer.click({ force: true });
   await page.getByRole('button', { name: 'Submit reception' }).click();
-  await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible();
+  await expect(
+    page.getByText('Restricted/Offline until approved'),
+  ).toBeVisible();
+  await expect(page.getByText('Restricted/Offline').first()).toBeVisible();
+  await expect(page.getByText('Awaiting Approval')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Approve' }).click();
+  await expect(
+    page.getByText(/Mandatory documents are not valid/).first(),
+  ).toBeVisible();
 
   // The mandatory certificate, uploaded and verified.
   await page.getByRole('tab', { name: 'Documents' }).click();
@@ -79,6 +88,7 @@ test('Milestone 2: register plant, hold its certificate, pass reception, approve
   await page.getByRole('tab', { name: 'History' }).click();
   for (const event of [
     'Plant registered',
+    'Plant restricted',
     'Document uploaded',
     'Document verified',
     'Reception approved',
