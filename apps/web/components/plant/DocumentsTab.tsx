@@ -92,6 +92,10 @@ function UploadModal({
   const { data: types } = useConfigList('document-types');
   const [upload, uploading] = useUploadDocumentMutation();
   const [replace, replacingState] = useReplaceDocumentMutation();
+  // A failure that is not about one field (storage, network, server). The
+  // toast fades after a few seconds, so the reason also stays in the form:
+  // an upload must never look as if nothing happened.
+  const [failure, setFailure] = useState<ApiError | null>(null);
   const form = useForm<UploadValues>({
     initialValues: {
       documentTypeId: defaultTypeId ?? '',
@@ -122,6 +126,7 @@ function UploadModal({
     replacing ? replacing.documentType.hasExpiry : !!typeOf(id)?.hasExpiry;
 
   const submit = form.onSubmit(async (values) => {
+    setFailure(null);
     const body = new FormData();
     if (!replacing) body.append('documentTypeId', values.documentTypeId);
     for (const key of ['reference', 'issuedOn', 'expiresOn'] as const)
@@ -130,7 +135,12 @@ function UploadModal({
     const result = replacing
       ? await replace({ documentId: replacing.id, form: body })
       : await upload({ plantId, form: body });
-    if (result.error) return showApiErrors(form, result.error as ApiError);
+    if (result.error) {
+      const error = result.error as ApiError;
+      if (error.fieldErrors?.length) showApiErrors(form, error);
+      else setFailure(error);
+      return;
+    }
     form.reset();
     onClose();
   });
@@ -161,6 +171,9 @@ function UploadModal({
     >
       <form onSubmit={submit} noValidate>
         <Stack>
+          {failure && (
+            <ErrorAlert error={failure} title="The document was not uploaded" />
+          )}
           {replacing && (
             <Text size="sm" c="dimmed">
               The current file and its verification are kept in the history. The

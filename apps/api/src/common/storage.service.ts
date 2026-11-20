@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { Injectable, Logger } from '@nestjs/common';
 import { type AppConfig, InjectConfig } from '../config/app-config.js';
+import { storageUnavailable } from './errors.js';
 
 /** Object keys are built by the API from ids: letters, digits, - _ . and /. */
 const SAFE_KEY = /^[A-Za-z0-9][A-Za-z0-9/_.-]*$/;
@@ -22,8 +23,30 @@ export class StorageService {
 
   constructor(@InjectConfig() private readonly config: AppConfig) {}
 
+  /**
+   * Stores a file. A storage failure is logged with the provider's reply and
+   * reaches the user as a clear "not saved" error rather than a generic one,
+   * so an upload never fails without saying why.
+   */
   async put(key: string, body: Buffer, contentType: string): Promise<void> {
     this.checkKey(key);
+    try {
+      await this.write(key, body, contentType);
+    } catch (error) {
+      this.logger.error(
+        `Could not store ${key} (${this.config.STORAGE_DRIVER}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      throw storageUnavailable();
+    }
+  }
+
+  private async write(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<void> {
     if (this.config.STORAGE_DRIVER === 'local') {
       const path = this.localPath(key);
       await mkdir(dirname(path), { recursive: true });

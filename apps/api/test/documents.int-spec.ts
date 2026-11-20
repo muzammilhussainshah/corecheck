@@ -37,6 +37,12 @@ const JPEG_WITH_EXIF = Buffer.concat([
   Buffer.from([0xff, 0xda, 0x00, 0x04, 0x00, 0x00, 0x12, 0x34, 0xff, 0xd9]),
 ]);
 
+/** A real 1x1 PNG (as a scan or screenshot would be), with a text chunk. */
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAE3RFWHRDb21tZW50AGRldmljZSBpbmZvXgMMCQAAAAxJREFUeJxj+M/AAAADAQEAyf6S7wAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 const day = (offset: number): string => {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() + offset);
@@ -444,6 +450,68 @@ describe('Plant documents and compliance (FRD 9)', () => {
     expect(expired.items.length).toBeGreaterThan(0);
     expect(expired.items.every((row) => row.state === 'expired')).toBe(true);
     expect(expired.items.some((row) => row.plant.id === plant.id)).toBe(true);
+  });
+
+  // Milestone 2 bug 1: a mandatory document as a PNG, with reference, issue
+  // and expiry dates, must be created, recorded in history and stored.
+  it('uploads a mandatory document as a PNG with reference and dates', async () => {
+    const plant = await newPlant();
+    const before = (
+      await staff.get(`/platform/organisations/${org.orgId}`).expect(200)
+    ).body as OrganisationDetail;
+
+    const uploaded = (
+      await upload(
+        org.admin,
+        plant.id,
+        {
+          documentTypeId: lolerId,
+          reference: 'LOL-PNG-1',
+          issuedOn: day(-10),
+          expiresOn: day(200),
+        },
+        PNG,
+        'loler.png',
+      ).expect(201)
+    ).body as PlantDocument;
+    expect(uploaded).toMatchObject({
+      state: 'awaiting_verification',
+      versions: [
+        {
+          version: 1,
+          verification: 'awaiting',
+          reference: 'LOL-PNG-1',
+          issuedOn: day(-10),
+          expiresOn: day(200),
+          fileName: 'loler.png',
+          contentType: 'image/png',
+        },
+      ],
+    });
+    expect((await documents(plant.id)).documents.map((d) => d.id)).toEqual([
+      uploaded.id,
+    ]);
+
+    const file = await binary(
+      org.admin.get(
+        `/documents/${uploaded.id}/versions/${uploaded.versions[0]!.id}/file`,
+      ),
+    ).expect(200);
+    expect((file.body as Buffer).subarray(0, 8)).toEqual(PNG.subarray(0, 8));
+    expect((file.body as Buffer).includes('device info')).toBe(false);
+
+    const history = (
+      await org.admin.get(`/plants/${plant.id}/history`).expect(200)
+    ).body as Paginated<AuditEvent>;
+    expect(history.items.map((event) => event.action)).toContain(
+      'document.uploaded',
+    );
+
+    const after = (
+      await staff.get(`/platform/organisations/${org.orgId}`).expect(200)
+    ).body as OrganisationDetail;
+    expect(after.usage.storedFiles).toBe(before.usage.storedFiles + 1);
+    expect(after.usage.storageBytes).toBeGreaterThan(before.usage.storageBytes);
   });
 
   it('counts document files in the organisation’s storage usage (IAD-004)', async () => {

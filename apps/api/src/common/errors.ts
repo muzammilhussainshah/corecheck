@@ -53,6 +53,14 @@ export const conflict = (
   details?: Record<string, unknown>,
 ) => new AppException(HttpStatus.CONFLICT, code, message, { details });
 
+/** File storage refused or could not be reached; nothing was saved. */
+export const storageUnavailable = () =>
+  new AppException(
+    HttpStatus.SERVICE_UNAVAILABLE,
+    ERROR_CODES.SERVICE_UNAVAILABLE,
+    'The file could not be saved, so nothing was uploaded. Please try again. If it keeps happening, contact CoreCheck support.',
+  );
+
 export const unauthenticated = (
   code: ErrorCode = ERROR_CODES.UNAUTHENTICATED,
   message = 'Please sign in.',
