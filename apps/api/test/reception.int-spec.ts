@@ -465,6 +465,32 @@ describe('Reception templates and plant reception (FRD 8, 10)', () => {
       });
     });
 
+    // Milestone 2 bug 2: a negative reading is refused, never saved as 0.
+    it('refuses a negative meter answer and keeps what was saved before', async () => {
+      const templateId = await publishedTemplate('manual');
+      const plant = await newPlant();
+      const check = await assign(plant.id, templateId);
+      await answerAll(operative.client, check.id);
+      const refused = await operative.client
+        .put(`/receptions/${check.id}/answers`, {
+          answers: [{ questionId: 'q-hours', value: -1 }],
+        })
+        .expect(400);
+      expect(refused.body.fieldErrors).toEqual([
+        {
+          field: 'answers.q-hours',
+          message: 'Enter the meter reading as a number of 0 or more.',
+        },
+      ]);
+      const reception = (
+        await operative.client.get(`/plants/${plant.id}/reception`).expect(200)
+      ).body as PlantReception;
+      expect(
+        reception.current!.answers.find((a) => a.questionId === 'q-hours')!
+          .value,
+      ).toBe(1520);
+    });
+
     it('takes plant Offline when a question set to do so fails (REC-AC-01)', async () => {
       const templateId = await publishedTemplate('automatic');
       const plant = await newPlant();

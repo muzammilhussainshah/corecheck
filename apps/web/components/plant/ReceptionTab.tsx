@@ -242,8 +242,20 @@ function CheckView({
     });
   };
 
-  const persist = async () =>
-    saveAnswers({
+  /**
+   * Shows each refused answer under its question (VAL-002), whether saving
+   * or submitting refused it: e.g. a negative meter reading is never
+   * changed or dropped without saying why.
+   */
+  const showErrors = (error: unknown) => {
+    const grouped: Record<string, string[]> = {};
+    for (const item of (error as ApiError).fieldErrors ?? [])
+      (grouped[item.field] ??= []).push(item.message);
+    setErrors(grouped);
+  };
+
+  const persist = async () => {
+    const result = await saveAnswers({
       checkId: check.id,
       answers: check.questions
         .filter((question) => question.type !== 'photo' || drafts[question.id])
@@ -253,17 +265,15 @@ function CheckView({
           comment: draftOf(question.id).comment,
         })),
     });
+    if (result.error) showErrors(result.error);
+    return result;
+  };
 
   const submit = async () => {
     const saved = await persist();
     if (saved.error) return;
     const result = await act({ checkId: check.id, action: 'submit' });
-    if (result.error) {
-      const grouped: Record<string, string[]> = {};
-      for (const item of (result.error as ApiError).fieldErrors ?? [])
-        (grouped[item.field] ??= []).push(item.message);
-      setErrors(grouped);
-    }
+    if (result.error) showErrors(result.error);
   };
 
   const photosOf = (id: string) =>
