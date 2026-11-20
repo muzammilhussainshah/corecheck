@@ -123,6 +123,9 @@ function AnswerInput({
           maw={240}
           suffix={unit ? ` ${unit}` : undefined}
           min={question.type === 'meter' ? 0 : undefined}
+          // Never change what was typed: a negative meter reading is
+          // rejected with a message, not saved as 0.
+          clampBehavior="none"
           value={typeof value === 'number' ? value : ''}
           onChange={(next) => onChange(typeof next === 'number' ? next : null)}
         />

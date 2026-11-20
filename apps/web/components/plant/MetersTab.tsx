@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Alert,
   Button,
   Card,
   Center,
@@ -16,7 +17,7 @@ import {
   Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconPlus } from '@tabler/icons-react';
+import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { ApiError, MeterReading, PlantDetail } from '@corecheck/shared';
 import {
@@ -36,12 +37,41 @@ import {
 import { useConfigList } from '../../lib/config';
 import { useSession } from '../../lib/session';
 
+/**
+ * A reading is checked as entered and never changed for the user: Mantine's
+ * NumberInput would otherwise clamp -1 to 0 on blur and a false zero would be
+ * saved (Milestone 2 bug 2).
+ */
+const readingError = (value: number | '', empty: string): string | null =>
+  value === '' ? empty : value < 0 ? 'A reading cannot be negative.' : null;
+
+/** Below the meter's latest reading: allowed (a replaced meter), but flagged. */
+function LowerThanLatestWarning({
+  value,
+  latest,
+}: {
+  value: number | '';
+  latest: MeterReading | undefined;
+}) {
+  if (value === '' || value < 0 || !latest || value >= latest.value)
+    return null;
+  return (
+    <Alert color="yellow" icon={<IconAlertTriangle size={18} />}>
+      This is lower than the latest {latest.meterType.name} reading of{' '}
+      {latest.value} {latest.unit}. Check the value before saving. If the meter
+      was replaced or reset, you can save it as it is.
+    </Alert>
+  );
+}
+
 function RecordModal({
   plantId,
+  latest,
   opened,
   onClose,
 }: {
   plantId: string;
+  latest: MeterReading[];
   opened: boolean;
   onClose: () => void;
 }) {
@@ -51,9 +81,12 @@ function RecordModal({
     initialValues: { meterTypeId: '', value: '' },
     validate: {
       meterTypeId: (value) => (value ? null : 'Choose the meter.'),
-      value: (value) => (value === '' ? 'Enter the reading.' : null),
+      value: (value) => readingError(value, 'Enter the reading.'),
     },
   });
+  const latestForMeter = latest.find(
+    (reading) => reading.meterType.id === form.values.meterTypeId,
+  );
   const submit = form.onSubmit(async (values) => {
     const result = await record({
       plantId,
@@ -84,7 +117,12 @@ function RecordModal({
             label="Reading"
             required
             min={0}
+            clampBehavior="none"
             {...form.getInputProps('value')}
+          />
+          <LowerThanLatestWarning
+            value={form.values.value}
+            latest={latestForMeter}
           />
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
@@ -111,7 +149,7 @@ function CorrectModal({
   const form = useForm<{ value: number | ''; reason: string }>({
     initialValues: { value: reading.value, reason: '' },
     validate: {
-      value: (value) => (value === '' ? 'Enter the correct reading.' : null),
+      value: (value) => readingError(value, 'Enter the correct reading.'),
       reason: (value) => (value.trim() ? null : 'Give the reason.'),
     },
   });
@@ -135,6 +173,7 @@ function CorrectModal({
             label={`Correct value (${reading.unit})`}
             required
             min={0}
+            clampBehavior="none"
             {...form.getInputProps('value')}
           />
           <Textarea
@@ -290,6 +329,7 @@ export function MetersTab({ plant }: { plant: PlantDetail }) {
       </Card>
       <RecordModal
         plantId={plant.id}
+        latest={data.latest}
         opened={recording}
         onClose={() => setRecording(false)}
       />
