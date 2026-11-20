@@ -411,6 +411,55 @@ describe('Reception templates and plant reception (FRD 8, 10)', () => {
         expect((await plantOf(plant.id)).status).toBe('awaiting_approval');
       });
 
+      it('blocks return to service while required information is missing, even with an override', async () => {
+        const templateId = await publishedTemplate('automatic');
+        const plant = await newPlant();
+        const check = await assign(plant.id, templateId);
+        await answerAll(operative.client, check.id);
+        await operative.client
+          .post(`/receptions/${check.id}/submit`)
+          .expect(200);
+        expect((await plantOf(plant.id)).status).toBe('approved');
+        await org.admin
+          .post(`/plants/${plant.id}/restrict`, { note: 'Hydraulic leak' })
+          .expect(200);
+
+        await requireDetails(['serialNumber']);
+        for (const body of [
+          { note: 'Leak fixed' },
+          { note: 'Leak fixed', override: true, reviewOn: '2099-01-01' },
+        ]) {
+          const blocked = await org.admin
+            .post(`/plants/${plant.id}/return-to-service`, body)
+            .expect(409);
+          expect(blocked.body).toMatchObject({
+            code: 'PLANT_DETAILS_MISSING',
+            details: { missingDetails: ['Serial Number'] },
+          });
+        }
+        expect((await plantOf(plant.id)).status).toBe('restricted');
+
+        await org.admin
+          .patch(`/plants/${plant.id}`, { serialNumber: 'SN-1' })
+          .expect(200);
+        await org.admin
+          .post(`/plants/${plant.id}/return-to-service`, { note: 'Leak fixed' })
+          .expect(200);
+        expect((await plantOf(plant.id)).status).toBe('approved');
+      });
+
+      it('lifts a restriction on never-approved plant to Pending Reception, which goes through reception again', async () => {
+        await requireDetails(['make']);
+        const plant = await newPlant();
+        await org.admin
+          .post(`/plants/${plant.id}/restrict`, { note: 'Damaged on delivery' })
+          .expect(200);
+        await org.admin
+          .post(`/plants/${plant.id}/return-to-service`, { note: 'Repaired' })
+          .expect(200);
+        expect((await plantOf(plant.id)).status).toBe('pending_reception');
+      });
+
       it('keeps the settings to those allowed to manage them', async () => {
         await operative.client.get('/config/plant-settings').expect(403);
       });

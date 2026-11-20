@@ -174,7 +174,10 @@ function ReturnModal({
   const [returnToService, { isLoading }] = useReturnPlantToServiceMutation();
   // Documents that stop it going Online, once the API has said so.
   const [blockers, setBlockers] = useState<string[] | null>(null);
-  const overriding = !!blockers && can('plant_status.override');
+  // Required plant information that is missing (PLT-008): no override.
+  const [missingDetails, setMissingDetails] = useState<string[] | null>(null);
+  const overriding =
+    !!blockers && !missingDetails && can('plant_status.override');
   const form = useForm({
     initialValues: { note: '', reviewOn: '' },
     validate: {
@@ -188,6 +191,7 @@ function ReturnModal({
   });
   const close = () => {
     setBlockers(null);
+    setMissingDetails(null);
     form.reset();
     onClose();
   };
@@ -199,6 +203,10 @@ function ReturnModal({
     });
     if (result.error) {
       const error = result.error as ApiError;
+      if (error.code === ERROR_CODES.PLANT_DETAILS_MISSING)
+        return setMissingDetails(
+          (error.details?.missingDetails as string[]) ?? [],
+        );
       if (error.code === ERROR_CODES.DOCUMENTS_NOT_VALID)
         return setBlockers((error.details?.documents as string[]) ?? []);
       return showApiErrors(form, error);
@@ -209,7 +217,18 @@ function ReturnModal({
     <Modal opened={opened} onClose={close} title="Return to service">
       <form onSubmit={submit} noValidate>
         <Stack>
-          {blockers ? (
+          {missingDetails ? (
+            <Alert
+              color="red"
+              icon={<IconAlertTriangle size={18} />}
+              title="Required plant information is missing"
+            >
+              <Text size="sm">{missingDetails.join(', ')}</Text>
+              <Text size="sm" mt={4}>
+                Add it with Edit first. This cannot be overridden.
+              </Text>
+            </Alert>
+          ) : blockers ? (
             <Alert
               color="red"
               icon={<IconAlertTriangle size={18} />}
@@ -229,14 +248,16 @@ function ReturnModal({
                 : 'This plant has not passed reception yet, so it returns to Pending Reception rather than Online.'}
             </Text>
           )}
-          <Textarea
-            label={overriding ? 'Reason for the override' : 'Note'}
-            required={overriding}
-            autosize
-            minRows={2}
-            placeholder={overriding ? undefined : 'Optional: what was done'}
-            {...form.getInputProps('note')}
-          />
+          {!missingDetails && (
+            <Textarea
+              label={overriding ? 'Reason for the override' : 'Note'}
+              required={overriding}
+              autosize
+              minRows={2}
+              placeholder={overriding ? undefined : 'Optional: what was done'}
+              {...form.getInputProps('note')}
+            />
+          )}
           {overriding && (
             <DateInput
               label="Review by"
@@ -254,7 +275,7 @@ function ReturnModal({
             <Button variant="default" onClick={close}>
               Cancel
             </Button>
-            {(!blockers || overriding) && (
+            {!missingDetails && (!blockers || overriding) && (
               <Button
                 type="submit"
                 color={overriding ? 'orange' : undefined}

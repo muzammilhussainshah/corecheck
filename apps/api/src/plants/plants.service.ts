@@ -466,9 +466,11 @@ export class PlantsService {
    * Online; plant never approved returns to Pending Reception so it still
    * goes through reception.
    *
-   * Going Online needs every mandatory document valid (DOC-AC-01). An
-   * authorised override lets plant back in use without them until a review
-   * date; the missing documents are kept in the audit record (DOC-008).
+   * Going Online needs the plant information required before approval
+   * (PLT-008) and every mandatory document valid (DOC-AC-01). An authorised
+   * override lets plant back in use without the documents, never without
+   * the information, until a review date; the missing documents are kept in
+   * the audit record (DOC-008).
    */
   async returnToService(
     auth: CustomerAuth,
@@ -487,6 +489,17 @@ export class PlantsService {
       throw conflict(ERROR_CODES.CONFLICT, 'This plant is not restricted.');
 
     const status = plant.approvedAt ? 'approved' : 'pending_reception';
+    // Going Online needs the plant information required before approval
+    // too (PLT-008). The documents override (DOC-008) does not cover it.
+    if (status === 'approved') {
+      const missing = await this.missingDetails(plant);
+      if (missing.length)
+        throw conflict(
+          ERROR_CODES.PLANT_DETAILS_MISSING,
+          `Required plant information is missing: ${missing.join(', ')}. Add it on the plant before returning it to service.`,
+          { missingDetails: missing },
+        );
+    }
     const blockers =
       status === 'approved' ? await this.compliance.blockers(plant.id) : [];
     const overriding = blockers.length > 0 && input.override;
