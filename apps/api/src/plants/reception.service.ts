@@ -90,9 +90,11 @@ const valueProblem = (
  * - otherwise, with automatic approval and every mandatory document valid,
  *   the plant goes Approved/Online (REC-005);
  * - otherwise it waits for a reviewer (REC-006): Restricted/Offline while a
- *   mandatory document is missing, expired or not verified (DOC-004,
- *   REC-AC-02), else Awaiting Approval. The reviewer approves (documents
- *   must then be valid, DOC-AC-01) or returns the work with a comment,
+ *   mandatory document is missing, expired or not verified, or plant
+ *   information required before approval is missing (DOC-004, REC-AC-02,
+ *   PLT-008), else Awaiting Approval. The reviewer approves (documents must
+ *   then be valid, DOC-AC-01, and the information present) or returns the
+ *   work with a comment,
  *   keeping the original submission (REC-007, REC-AC-04).
  */
 @Injectable()
@@ -467,16 +469,33 @@ export class ReceptionService {
         summary: `Approved ${plant.assetId} ${plant.name}: reception passed (automatic)`,
         metadata: { checkId, automatic: true },
       });
-    else if (documents.length > 0)
-      // Missing or expired mandatory documents put plant out of use at once
-      // (DOC-004, REC-AC-02). The check stays submitted, so a reviewer can
-      // approve it, and bring the plant Online, once they are valid.
+    else if (documents.length > 0 || missing.length > 0)
+      // Missing or expired mandatory documents, or missing plant information
+      // required before approval, put plant out of use at once (DOC-004,
+      // REC-AC-02, PLT-008). The check stays submitted, so a reviewer can
+      // approve it, and bring the plant Online, once they are resolved.
       await this.setPlantStatus(userActor(auth), plant, {
         status: 'restricted',
-        note: `Mandatory documents not valid: ${documents.join(', ')}`,
+        note: [
+          documents.length > 0 &&
+            `Mandatory documents not valid: ${documents.join(', ')}`,
+          missing.length > 0 &&
+            `Missing plant information: ${missing.join(', ')}`,
+        ]
+          .filter(Boolean)
+          .join('; '),
         action: 'plant.restricted',
-        summary: `Restricted ${plant.assetId} ${plant.name}: mandatory documents not valid`,
-        metadata: { checkId, automatic: true, documents },
+        summary: `Restricted ${plant.assetId} ${plant.name}: ${
+          documents.length
+            ? 'mandatory documents not valid'
+            : 'required plant information missing'
+        }`,
+        metadata: {
+          checkId,
+          automatic: true,
+          ...(documents.length > 0 && { documents }),
+          ...(missing.length > 0 && { missingDetails: missing }),
+        },
       });
     else
       await this.setPlantStatus(userActor(auth), plant, {
@@ -501,6 +520,15 @@ export class ReceptionService {
         ERROR_CODES.DOCUMENTS_NOT_VALID,
         `Mandatory documents are not valid: ${documents.join(', ')}.`,
         { documents },
+      );
+    // Plant information required before approval (PLT-008) is enforced
+    // here too, not only shown: approval must not bypass it.
+    const missing = await this.plants.missingDetails(plant);
+    if (missing.length)
+      throw conflict(
+        ERROR_CODES.PLANT_DETAILS_MISSING,
+        `Required plant information is missing: ${missing.join(', ')}. Add it on the plant before approving.`,
+        { missingDetails: missing },
       );
     const now = this.clock.now();
     await this.db.update(

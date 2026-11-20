@@ -205,8 +205,9 @@ function CheckView({
   check: ReceptionCheck;
   plantStatus: PlantDetail['status'];
 }) {
-  // Passed, but held out of use until its mandatory documents are valid
-  // (DOC-004, REC-AC-02); approving then brings it Online.
+  // Passed, but held out of use until its mandatory documents are valid and
+  // required plant information is added (DOC-004, REC-AC-02, PLT-008);
+  // approving then brings it Online.
   const heldOffline =
     check.status === 'submitted' && plantStatus === 'restricted';
   const { me } = useSession();
@@ -280,7 +281,7 @@ function CheckView({
               {heldOffline ? (
                 // Passed but held out of use: never shown as Awaiting
                 // Approval (DOC-004, REC-AC-02).
-                <Pill tone="danger">Restricted/Offline: documents needed</Pill>
+                <Pill tone="danger">Restricted/Offline</Pill>
               ) : (
                 <ReceptionBadge status={check.status} />
               )}
@@ -365,8 +366,9 @@ function CheckView({
               ))}
               {heldOffline && (
                 <Text size="sm" mt={4}>
-                  The plant stays Restricted/Offline until every mandatory
-                  document is valid and verified and the reception is approved.
+                  The plant stays Restricted/Offline until everything above is
+                  resolved (documents valid and verified, required plant
+                  information added) and the reception is approved.
                 </Text>
               )}
             </Stack>

@@ -54,6 +54,8 @@ export const ERROR_CODES = {
   // Plant
   /** Mandatory documents missing or expired; an authorised override can pass it. */
   DOCUMENTS_NOT_VALID: 'DOCUMENTS_NOT_VALID',
+  /** Plant information required before approval is missing. */
+  PLANT_DETAILS_MISSING: 'PLANT_DETAILS_MISSING',
   INCOMPLETE_SUBMISSION: 'INCOMPLETE_SUBMISSION',
 } as const;
 

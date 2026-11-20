@@ -297,28 +297,123 @@ describe('Reception templates and plant reception (FRD 8, 10)', () => {
       ).toBe(true);
     });
 
-    it('does not approve automatically while mandatory plant details are missing (PLT-008, REC-007)', async () => {
-      await org.admin
-        .put('/config/plant-settings', { requiredFields: ['serialNumber'] })
-        .expect(200);
-      const templateId = await publishedTemplate('automatic');
-      const plant = await newPlant();
-      const check = await assign(plant.id, templateId);
-      await answerAll(operative.client, check.id);
-      const result = (
+    describe('with plant information required before approval (PLT-008, REC-007)', () => {
+      const requireDetails = (requiredFields: string[]) =>
+        org.admin.put('/config/plant-settings', { requiredFields }).expect(200);
+      afterEach(() => requireDetails([]));
+
+      const historyOf = async (plantId: string) =>
+        (
+          (await org.admin.get(`/plants/${plantId}/history`).expect(200))
+            .body as { items: Array<{ action: string }> }
+        ).items.map((event) => event.action);
+
+      // Milestone 2 bug 4: the reviewer's Approve bypassed this check.
+      it.each([
+        ['plantNumber', 'Plant Number', 'manual'],
+        ['serialNumber', 'Serial Number', 'manual'],
+        ['make', 'Make', 'manual'],
+        ['model', 'Model', 'manual'],
+        ['plantNumber', 'Plant Number', 'automatic'],
+      ] as const)(
+        'holds plant without its %s Restricted/Offline and blocks approval until it is added (%s, %s approval)',
+        async (field, label, mode) => {
+          await requireDetails([field]);
+          const templateId = await publishedTemplate(mode);
+          const plant = await newPlant();
+          const check = await assign(plant.id, templateId);
+          await answerAll(operative.client, check.id);
+          const result = (
+            await operative.client
+              .post(`/receptions/${check.id}/submit`)
+              .expect(200)
+          ).body as PlantReception;
+          expect(result.current).toMatchObject({
+            status: 'submitted',
+            outcomeReasons: [`Missing plant information: ${label}`],
+          });
+          const held = await plantOf(plant.id);
+          expect(held.status).toBe('restricted');
+          expect(held.statusNote).toBe(`Missing plant information: ${label}`);
+
+          const blocked = await supervisor.client
+            .post(`/receptions/${check.id}/approve`)
+            .expect(409);
+          expect(blocked.body).toMatchObject({
+            code: 'PLANT_DETAILS_MISSING',
+            details: { missingDetails: [label] },
+          });
+          expect(blocked.body.message).toContain(label);
+          expect((await plantOf(plant.id)).status).toBe('restricted');
+
+          // Adding the information alone does not bring it Online.
+          await org.admin
+            .patch(`/plants/${plant.id}`, { [field]: 'QA-123' })
+            .expect(200);
+          expect((await plantOf(plant.id)).status).toBe('restricted');
+          await supervisor.client
+            .post(`/receptions/${check.id}/approve`)
+            .expect(200);
+          expect((await plantOf(plant.id)).status).toBe('approved');
+          expect(await historyOf(plant.id)).toEqual(
+            expect.arrayContaining(['plant.restricted', 'plant.approved']),
+          );
+        },
+      );
+
+      it('blocks approval while a custom field required since registration is empty', async () => {
+        // Required custom fields are asked for at registration, so one is
+        // missing only when it became required after the plant was added.
+        const plant = await newPlant();
+        const field = (
+          await org.admin
+            .post('/config/custom-fields', {
+              label: `Fuel ${uid()}`,
+              fieldType: 'text',
+              required: true,
+            })
+            .expect(201)
+        ).body as { id: string; label: string };
+        try {
+          const templateId = await publishedTemplate('manual');
+          const check = await assign(plant.id, templateId);
+          await answerAll(operative.client, check.id);
+          await operative.client
+            .post(`/receptions/${check.id}/submit`)
+            .expect(200);
+          expect((await plantOf(plant.id)).status).toBe('restricted');
+          const blocked = await supervisor.client
+            .post(`/receptions/${check.id}/approve`)
+            .expect(409);
+          expect(blocked.body.code).toBe('PLANT_DETAILS_MISSING');
+          expect(blocked.body.message).toContain(field.label);
+        } finally {
+          await org.admin
+            .post(`/config/custom-fields/${field.id}/archive`)
+            .expect(200);
+        }
+      });
+
+      it('blocks approval when the information is required after submission', async () => {
+        const templateId = await publishedTemplate('manual');
+        const plant = await newPlant();
+        const check = await assign(plant.id, templateId);
+        await answerAll(operative.client, check.id);
         await operative.client
           .post(`/receptions/${check.id}/submit`)
-          .expect(200)
-      ).body as PlantReception;
-      await org.admin
-        .put('/config/plant-settings', { requiredFields: [] })
-        .expect(200);
-      expect(result.current).toMatchObject({
-        status: 'submitted',
-        outcomeReasons: ['Missing plant information: Serial Number'],
+          .expect(200);
+        expect((await plantOf(plant.id)).status).toBe('awaiting_approval');
+        await requireDetails(['model']);
+        const blocked = await supervisor.client
+          .post(`/receptions/${check.id}/approve`)
+          .expect(409);
+        expect(blocked.body.code).toBe('PLANT_DETAILS_MISSING');
+        expect((await plantOf(plant.id)).status).toBe('awaiting_approval');
       });
-      expect((await plantOf(plant.id)).status).toBe('awaiting_approval');
-      await operative.client.get('/config/plant-settings').expect(403);
+
+      it('keeps the settings to those allowed to manage them', async () => {
+        await operative.client.get('/config/plant-settings').expect(403);
+      });
     });
 
     it('takes plant Offline when a question set to do so fails (REC-AC-01)', async () => {
