@@ -2,7 +2,11 @@ import { HttpStatus } from '@nestjs/common';
 import { ERROR_CODES } from '@corecheck/shared';
 import type { AppConfig } from '../config/app-config.js';
 import { AppException } from './errors.js';
-import { StorageService } from './storage.service.js';
+import {
+  describeSupabaseKey,
+  normaliseSupabaseKey,
+  StorageService,
+} from './storage.service.js';
 
 const supabaseConfig = {
   STORAGE_DRIVER: 'supabase',
@@ -103,11 +107,44 @@ describe('StorageService (Supabase)', () => {
       }
     });
 
+    // Staging still got "JWS Protected Header is invalid" with the first fix:
+    // a key pasted with quotes or "Bearer " looks like a JWT but is not one.
+    it.each([
+      ['quotes', (k: string) => `"${k}"`],
+      ['single quotes', (k: string) => `'${k}'`],
+      ['a Bearer prefix', (k: string) => `Bearer ${k}`],
+      ['quotes and spaces', (k: string) => ` "Bearer ${k}"\n`],
+    ])('cleans a legacy JWT pasted with %s', async (_case, paste) => {
+      const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.c2ln';
+      for (const headers of await headersFor(paste(jwt))) {
+        expect(headers.apikey).toBe(jwt);
+        expect(headers.authorization).toBe(`Bearer ${jwt}`);
+      }
+    });
+
+    it('never sends a value that only looks like a JWT as a Bearer token', async () => {
+      for (const headers of await headersFor('abc.def.ghi-not-a-jwt-at-all'))
+        expect(headers).not.toHaveProperty('authorization');
+    });
+
     it('ignores stray whitespace around the key', async () => {
       const key = `sb_secret_${'y'.repeat(32)}`;
       for (const headers of await headersFor(`  ${key}\n`))
         expect(headers.apikey).toBe(key);
     });
+  });
+
+  it('names the kind of key for the logs, never the key', () => {
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.c2ln';
+    expect(describeSupabaseKey(`sb_secret_${'z'.repeat(32)}`)).toBe(
+      'secret key (sb_secret_)',
+    );
+    expect(describeSupabaseKey(jwt)).toBe('legacy service_role JWT');
+    expect(describeSupabaseKey(`"${jwt}"`)).toBe('unrecognised');
+    expect(describeSupabaseKey(normaliseSupabaseKey(`"${jwt}"`))).toBe(
+      'legacy service_role JWT',
+    );
+    expect(describeSupabaseKey('sb_publishable_abc')).toBe('unrecognised');
   });
 
   it('reports a clear error when storage cannot be reached', async () => {
