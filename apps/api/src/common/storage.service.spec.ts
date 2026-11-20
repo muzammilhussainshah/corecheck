@@ -73,6 +73,43 @@ describe('StorageService (Supabase)', () => {
     );
   });
 
+  // Milestone 2 bug 1: staging's sb_secret_ key was sent as a Bearer token
+  // and Storage answered 403 "JWS Protected Header is invalid".
+  describe('authorisation headers', () => {
+    const headersFor = async (key: string) => {
+      fetchMock.mockResolvedValue(reply(200));
+      await new StorageService({
+        ...supabaseConfig,
+        SUPABASE_SERVICE_ROLE_KEY: key,
+      } as AppConfig).put('org/a.png', Buffer.from('png'), 'image/png');
+      return fetchMock.mock.calls.map(
+        ([, init]) => init!.headers as Record<string, string>,
+      );
+    };
+
+    it('sends a secret key (sb_secret_...) as apikey only, never as a Bearer token', async () => {
+      const key = `sb_secret_${'x'.repeat(32)}`;
+      for (const headers of await headersFor(key)) {
+        expect(headers.apikey).toBe(key);
+        expect(headers).not.toHaveProperty('authorization');
+      }
+    });
+
+    it('sends a legacy service_role JWT in both headers', async () => {
+      const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.c2ln';
+      for (const headers of await headersFor(jwt)) {
+        expect(headers.apikey).toBe(jwt);
+        expect(headers.authorization).toBe(`Bearer ${jwt}`);
+      }
+    });
+
+    it('ignores stray whitespace around the key', async () => {
+      const key = `sb_secret_${'y'.repeat(32)}`;
+      for (const headers of await headersFor(`  ${key}\n`))
+        expect(headers.apikey).toBe(key);
+    });
+  });
+
   it('reports a clear error when storage cannot be reached', async () => {
     fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
     await expect(put()).rejects.toMatchObject({

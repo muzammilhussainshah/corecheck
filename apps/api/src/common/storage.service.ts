@@ -93,14 +93,22 @@ export class StorageService {
     return path;
   }
 
+  /**
+   * Supabase has two kinds of server key. A legacy service_role key is a JWT
+   * and goes in both headers. A secret key (sb_secret_...) is not a JWT:
+   * Storage refuses it as a Bearer token ("JWS Protected Header is
+   * invalid"), so it goes in the apikey header only and the gateway
+   * authorises the request from it.
+   */
   private supabase(path: string, init: RequestInit): Promise<Response> {
-    const key = this.config.SUPABASE_SERVICE_ROLE_KEY!;
+    const key = this.config.SUPABASE_SERVICE_ROLE_KEY!.trim();
+    const isJwt = key.split('.').length === 3;
     return fetch(`${this.config.SUPABASE_URL}/storage/v1/${path}`, {
       ...init,
       headers: {
         ...init.headers,
-        authorization: `Bearer ${key}`,
         apikey: key,
+        ...(isJwt && { authorization: `Bearer ${key}` }),
       },
     });
   }
