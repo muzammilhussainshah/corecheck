@@ -56,6 +56,8 @@ export const ERROR_CODES = {
   DOCUMENTS_NOT_VALID: 'DOCUMENTS_NOT_VALID',
   /** Plant information required before approval is missing. */
   PLANT_DETAILS_MISSING: 'PLANT_DETAILS_MISSING',
+  /** Plant held by its reception: approving the reception lifts it. */
+  RECEPTION_APPROVAL_REQUIRED: 'RECEPTION_APPROVAL_REQUIRED',
   INCOMPLETE_SUBMISSION: 'INCOMPLETE_SUBMISSION',
 } as const;
 

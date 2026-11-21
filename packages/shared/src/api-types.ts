@@ -287,6 +287,13 @@ export interface PlantDetail extends PlantSummary {
   approvedAt: string | null;
   /** An override of missing documents still within its review date. */
   complianceOverride: { until: string; note: string } | null;
+  /**
+   * Passed reception but held Restricted/Offline until its mandatory
+   * documents and required details are in order and the reception is
+   * approved (DOC-004, REC-AC-02). Approval, not a return to service,
+   * brings it Online.
+   */
+  heldByReception: boolean;
   createdAt: string;
   createdBy: string;
   /** What the signed-in user may do with this plant. */

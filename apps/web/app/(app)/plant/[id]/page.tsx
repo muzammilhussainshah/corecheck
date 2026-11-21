@@ -2,6 +2,7 @@
 
 import {
   Alert,
+  Anchor,
   Button,
   Card,
   Center,
@@ -176,8 +177,13 @@ function ReturnModal({
   const [blockers, setBlockers] = useState<string[] | null>(null);
   // Required plant information that is missing (PLT-008): no override.
   const [missingDetails, setMissingDetails] = useState<string[] | null>(null);
-  const overriding =
-    !!blockers && !missingDetails && can('plant_status.override');
+  // Any other refusal, shown here so the action never fails silently.
+  const [failure, setFailure] = useState<ApiError | null>(null);
+  // Refusals that trying again cannot change.
+  const blocked =
+    !!missingDetails ||
+    failure?.code === ERROR_CODES.RECEPTION_APPROVAL_REQUIRED;
+  const overriding = !!blockers && !blocked && can('plant_status.override');
   const form = useForm({
     initialValues: { note: '', reviewOn: '' },
     validate: {
@@ -192,10 +198,12 @@ function ReturnModal({
   const close = () => {
     setBlockers(null);
     setMissingDetails(null);
+    setFailure(null);
     form.reset();
     onClose();
   };
   const submit = form.onSubmit(async (values) => {
+    setFailure(null);
     const result = await returnToService({
       id: plant.id,
       note: values.note,
@@ -209,7 +217,8 @@ function ReturnModal({
         );
       if (error.code === ERROR_CODES.DOCUMENTS_NOT_VALID)
         return setBlockers((error.details?.documents as string[]) ?? []);
-      return showApiErrors(form, error);
+      if (error.fieldErrors?.length) return showApiErrors(form, error);
+      return setFailure(error);
     }
     close();
   });
@@ -217,7 +226,24 @@ function ReturnModal({
     <Modal opened={opened} onClose={close} title="Return to service">
       <form onSubmit={submit} noValidate>
         <Stack>
-          {missingDetails ? (
+          {failure ? (
+            <Alert
+              color="red"
+              icon={<IconAlertTriangle size={18} />}
+              title={
+                failure.code === ERROR_CODES.RECEPTION_APPROVAL_REQUIRED
+                  ? 'This plant cannot be returned to service'
+                  : 'The plant was not returned to service'
+              }
+            >
+              <Text size="sm">{failure.message}</Text>
+              {failure.requestId && failure.statusCode >= 500 && (
+                <Text size="xs" c="dimmed" mt={4}>
+                  Reference {failure.requestId.slice(0, 8)}
+                </Text>
+              )}
+            </Alert>
+          ) : missingDetails ? (
             <Alert
               color="red"
               icon={<IconAlertTriangle size={18} />}
@@ -248,7 +274,7 @@ function ReturnModal({
                 : 'This plant has not passed reception yet, so it returns to Pending Reception rather than Online.'}
             </Text>
           )}
-          {!missingDetails && (
+          {!blocked && (
             <Textarea
               label={overriding ? 'Reason for the override' : 'Note'}
               required={overriding}
@@ -275,7 +301,7 @@ function ReturnModal({
             <Button variant="default" onClick={close}>
               Cancel
             </Button>
-            {!missingDetails && (!blockers || overriding) && (
+            {!blocked && (!blockers || overriding) && (
               <Button
                 type="submit"
                 color={overriding ? 'orange' : undefined}
@@ -518,6 +544,32 @@ export default function PlantProfilePage() {
           </>
         }
       />
+
+      {plant.heldByReception && !archived && tab !== 'reception' && (
+        // Why there is no Return to service: approving the reception, once
+        // what it waits for is in order, is the way back (DOC-004, REC-AC-02).
+        // The Reception tab says the same in its own box.
+        <Alert
+          mb="md"
+          color="red"
+          icon={<IconAlertTriangle size={18} />}
+          title="Restricted/Offline until the reception is approved"
+        >
+          <Text size="sm">
+            {plant.statusNote ?? 'Mandatory documents or details are missing.'}
+          </Text>
+          <Text size="sm" mt={4}>
+            Resolve these, then approve the reception.{' '}
+            <Anchor
+              component={Link}
+              href={`/plant/${plant.id}?tab=reception`}
+              size="sm"
+            >
+              Open the Reception tab
+            </Anchor>
+          </Text>
+        </Alert>
+      )}
 
       <Tabs
         value={tab}

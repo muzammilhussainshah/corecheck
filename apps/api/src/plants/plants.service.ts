@@ -45,6 +45,7 @@ import {
   PlantDisciplineEntity,
   PlantEntity,
   PlantTypeEntity,
+  ReceptionCheckEntity,
   SiteEntity,
   UserEntity,
 } from '../database/entities.js';
@@ -464,7 +465,8 @@ export class PlantsService {
   /**
    * Lifts a restriction (PLC-005). Plant that was approved before goes back
    * Online; plant never approved returns to Pending Reception so it still
-   * goes through reception.
+   * goes through reception. Plant held by a submitted reception is refused
+   * with what it still needs: approving the reception lifts that hold.
    *
    * Going Online needs the plant information required before approval
    * (PLT-008) and every mandatory document valid (DOC-AC-01). An authorised
@@ -487,6 +489,25 @@ export class PlantsService {
     this.ensureNotArchived(plant);
     if (plant.status !== 'restricted')
       throw conflict(ERROR_CODES.CONFLICT, 'This plant is not restricted.');
+
+    // Held by its reception: lifting the restriction would bypass the
+    // documents and details it is waiting for. Say what is still needed;
+    // approving the reception is the way back (Milestone 2 bug 5).
+    if (await this.heldByReception(plant)) {
+      const documents = await this.compliance.blockers(plant.id);
+      const missingDetails = await this.missingDetails(plant);
+      const needed = [
+        ...documents.map((document) => `document ${document}`),
+        ...missingDetails.map((detail) => `${detail} (plant information)`),
+      ];
+      throw conflict(
+        ERROR_CODES.RECEPTION_APPROVAL_REQUIRED,
+        needed.length
+          ? `This plant stays Restricted/Offline until its reception is approved. Still needed: ${needed.join(', ')}. Resolve these, then approve the reception.`
+          : 'This plant stays Restricted/Offline until its reception is approved. Its documents and details are now in order: approve the reception on the Reception tab.',
+        { documents, missingDetails },
+      );
+    }
 
     const status = plant.approvedAt ? 'approved' : 'pending_reception';
     // Going Online needs the plant information required before approval
@@ -657,9 +678,26 @@ export class PlantsService {
     return where.join(' and ');
   }
 
+  /**
+   * Passed reception but held Restricted/Offline until its documents and
+   * required details are in order (DOC-004, REC-AC-02, PLT-008): never
+   * approved, with its reception submitted and awaiting approval. Approving
+   * the reception lifts it; a return to service must not (Milestone 2 bug 5).
+   */
+  private async heldByReception(plant: PlantEntity): Promise<boolean> {
+    if (plant.status !== 'restricted' || plant.approvedAt) return false;
+    return (
+      (await this.db.countBy(ReceptionCheckEntity, {
+        plantId: plant.id,
+        status: 'submitted',
+      })) > 0
+    );
+  }
+
   private capabilities(
     auth: CustomerAuth,
     plant: PlantEntity,
+    heldByReception = false,
   ): PlantDetail['capabilities'] {
     const has = (code: Parameters<typeof auth.permissions.has>[0]) =>
       auth.permissions.has(code);
@@ -677,6 +715,7 @@ export class PlantsService {
       returnToService:
         active &&
         plant.status === 'restricted' &&
+        !heldByReception &&
         has('plant_status.return_to_service'),
       printQr: has('plant.qr'),
     };
@@ -987,6 +1026,7 @@ export class PlantsService {
       const user = people.find((person) => person.id === userId);
       return user ? fullName(user) : null;
     };
+    const held = await this.heldByReception(plant);
     const overrideActive =
       !!plant.complianceOverrideUntil &&
       plant.complianceOverrideUntil >= (await this.compliance.today());
@@ -1004,9 +1044,10 @@ export class PlantsService {
             note: plant.complianceOverrideNote ?? '',
           }
         : null,
+      heldByReception: held,
       createdAt: plant.createdAt.toISOString(),
       createdBy: nameOf(plant.createdBy) ?? 'Unknown',
-      capabilities: this.capabilities(auth, plant),
+      capabilities: this.capabilities(auth, plant, held),
     };
   }
 

@@ -734,6 +734,81 @@ describe('Reception templates and plant reception (FRD 8, 10)', () => {
           .expect(409);
         expect(blocked.body.code).toBe('DOCUMENTS_NOT_VALID');
       });
+
+      // Milestone 2 bug 5: Return to service lifted this hold (or seemed to
+      // do nothing) without saying what the plant was waiting for.
+      it('offers no Return to service for plant held by its reception, and refuses one saying what is needed', async () => {
+        const { docTypeId, plantTypeId } = await strictPlantType();
+        const templateId = await publishedTemplate('manual');
+        const plant = await newPlant(operative.client, plantTypeId);
+        const check = await assign(plant.id, templateId);
+        await answerAll(operative.client, check.id);
+        await operative.client
+          .post(`/receptions/${check.id}/submit`)
+          .expect(200);
+
+        const held = await plantOf(plant.id);
+        expect(held).toMatchObject({
+          status: 'restricted',
+          heldByReception: true,
+          capabilities: { returnToService: false },
+        });
+
+        for (const body of [
+          { note: 'Checked by QA' },
+          { note: 'Checked by QA', override: true, reviewOn: '2099-01-01' },
+        ]) {
+          const refused = await org.admin
+            .post(`/plants/${plant.id}/return-to-service`, body)
+            .expect(409);
+          expect(refused.body.code).toBe('RECEPTION_APPROVAL_REQUIRED');
+          expect(refused.body.message).toMatch(
+            /Still needed: document Insurance .* \(Missing\)\. Resolve these, then approve the reception\./,
+          );
+          expect(refused.body.details.documents).toEqual([
+            expect.stringMatching(/^Insurance .* \(Missing\)$/),
+          ]);
+        }
+        expect((await plantOf(plant.id)).status).toBe('restricted');
+
+        // In order now, but approval, not a return to service, ends it.
+        await uploadVerified(plant.id, docTypeId);
+        const ready = await org.admin
+          .post(`/plants/${plant.id}/return-to-service`, { note: 'x' })
+          .expect(409);
+        expect(ready.body.message).toMatch(/approve the reception/);
+        await supervisor.client
+          .post(`/receptions/${check.id}/approve`)
+          .expect(200);
+        expect(await plantOf(plant.id)).toMatchObject({
+          status: 'approved',
+          heldByReception: false,
+        });
+      });
+
+      it('still offers Return to service once approved plant is restricted again', async () => {
+        const { docTypeId, plantTypeId } = await strictPlantType();
+        const templateId = await publishedTemplate('automatic');
+        const plant = await newPlant(operative.client, plantTypeId);
+        await uploadVerified(plant.id, docTypeId);
+        const check = await assign(plant.id, templateId);
+        await answerAll(operative.client, check.id);
+        await operative.client
+          .post(`/receptions/${check.id}/submit`)
+          .expect(200);
+        expect((await plantOf(plant.id)).status).toBe('approved');
+        await org.admin
+          .post(`/plants/${plant.id}/restrict`, { note: 'Hydraulic leak' })
+          .expect(200);
+        expect(await plantOf(plant.id)).toMatchObject({
+          heldByReception: false,
+          capabilities: { returnToService: true },
+        });
+        await org.admin
+          .post(`/plants/${plant.id}/return-to-service`, { note: 'Fixed' })
+          .expect(200);
+        expect((await plantOf(plant.id)).status).toBe('approved');
+      });
     });
 
     it('keeps the template version a check started from (REC-008, TMP-AC-03)', async () => {
