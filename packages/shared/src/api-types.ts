@@ -676,6 +676,8 @@ export interface MeterReading {
   readAt: string;
   source: 'manual' | 'reception';
   recordedBy: string;
+  /** Why it is below the latest reading before it (meter replaced or reset). */
+  resetReason: string | null;
   /** Newest first; each keeps the value it replaced (MTR-005). */
   corrections: Array<{
     previousValue: number;

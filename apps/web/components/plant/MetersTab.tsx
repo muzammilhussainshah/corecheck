@@ -45,21 +45,20 @@ import { useSession } from '../../lib/session';
 const readingError = (value: number | '', empty: string): string | null =>
   value === '' ? empty : value < 0 ? 'A reading cannot be negative.' : null;
 
-/** Below the meter's latest reading: allowed (a replaced meter), but flagged. */
-function LowerThanLatestWarning({
-  value,
-  latest,
-}: {
-  value: number | '';
-  latest: MeterReading | undefined;
-}) {
-  if (value === '' || value < 0 || !latest || value >= latest.value)
-    return null;
+/** Below the meter's latest reading: a replaced or reset meter. */
+const isLower = (value: number | '', latest: MeterReading | undefined) =>
+  value !== '' && value >= 0 && !!latest && value < latest.value;
+
+/**
+ * A reading below the latest needs a reason, kept with it and in the audit
+ * (Milestone 2 bug 7); the API refuses one without.
+ */
+function LowerThanLatestWarning({ latest }: { latest: MeterReading }) {
   return (
     <Alert color="yellow" icon={<IconAlertTriangle size={18} />}>
       This is lower than the latest {latest.meterType.name} reading of{' '}
-      {latest.value} {latest.unit}. Check the value before saving. If the meter
-      was replaced or reset, you can save it as it is.
+      {latest.value} {latest.unit}. Check the value. If the meter was replaced
+      or reset, give the reason below; it is kept with the reading.
     </Alert>
   );
 }
@@ -77,21 +76,31 @@ function RecordModal({
 }) {
   const { data: meters } = useConfigList('meter-types');
   const [record, { isLoading }] = useRecordMeterReadingMutation();
-  const form = useForm<{ meterTypeId: string; value: number | '' }>({
-    initialValues: { meterTypeId: '', value: '' },
+  const latestOf = (meterTypeId: string) =>
+    latest.find((reading) => reading.meterType.id === meterTypeId);
+  const form = useForm<{
+    meterTypeId: string;
+    value: number | '';
+    resetReason: string;
+  }>({
+    initialValues: { meterTypeId: '', value: '', resetReason: '' },
     validate: {
       meterTypeId: (value) => (value ? null : 'Choose the meter.'),
       value: (value) => readingError(value, 'Enter the reading.'),
+      resetReason: (value, values) =>
+        isLower(values.value, latestOf(values.meterTypeId)) && !value.trim()
+          ? 'Give the reason the reading is lower, e.g. the meter was replaced.'
+          : null,
     },
   });
-  const latestForMeter = latest.find(
-    (reading) => reading.meterType.id === form.values.meterTypeId,
-  );
+  const latestForMeter = latestOf(form.values.meterTypeId);
+  const lower = isLower(form.values.value, latestForMeter);
   const submit = form.onSubmit(async (values) => {
     const result = await record({
       plantId,
       meterTypeId: values.meterTypeId,
       value: values.value as number,
+      ...(lower && { resetReason: values.resetReason }),
     });
     if (result.error) return showApiErrors(form, result.error as ApiError);
     form.reset();
@@ -120,10 +129,19 @@ function RecordModal({
             clampBehavior="none"
             {...form.getInputProps('value')}
           />
-          <LowerThanLatestWarning
-            value={form.values.value}
-            latest={latestForMeter}
-          />
+          {lower && latestForMeter && (
+            <>
+              <LowerThanLatestWarning latest={latestForMeter} />
+              <Textarea
+                label="Reason for the lower reading"
+                placeholder="e.g. Hour meter replaced on 20 Nov"
+                required
+                autosize
+                minRows={2}
+                {...form.getInputProps('resetReason')}
+              />
+            </>
+          )}
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
               Cancel
@@ -237,6 +255,11 @@ export function MetersTab({ plant }: { plant: PlantDetail }) {
           <Text size="sm" fw={600}>
             {reading.value} {reading.unit}
           </Text>
+          {reading.resetReason && (
+            <Text size="xs" c="orange.8">
+              Lower than the reading before: {reading.resetReason}
+            </Text>
+          )}
           {reading.corrections.map((item) => (
             <Text size="xs" c={COLORS.muted} key={item.correctedAt}>
               Was {item.previousValue}: {item.reason} ({item.correctedBy},{' '}

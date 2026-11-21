@@ -714,6 +714,8 @@ export const createMeterReadingSchema = z.object({
   meterTypeId: requiredId('Meter'),
   value: meterValue,
   readAt: z.iso.datetime({ offset: true }).optional(),
+  /** Required when the value is below the meter's latest reading. */
+  resetReason: optionalText('Reason', 500),
 });
 export type CreateMeterReadingInput = z.input<typeof createMeterReadingSchema>;
 

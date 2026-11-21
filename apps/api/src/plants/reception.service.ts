@@ -35,6 +35,7 @@ import { StorageService } from '../common/storage.service.js';
 import {
   CheckTemplateEntity,
   CheckTemplateVersionEntity,
+  MeterTypeEntity,
   PlantEntity,
   ReceptionAnswerEntity,
   ReceptionCheckEntity,
@@ -375,6 +376,35 @@ export class ReceptionService {
         photoCount === 0
       )
         errors.push({ field, message: `Add a photo: ${question.text}` });
+    }
+    // A meter answer below the plant's latest reading would make its history
+    // go down without a reason (Milestone 2 bug 7): say so on the question.
+    for (const question of questions) {
+      const answer = answers.get(question.id);
+      if (
+        question.type !== 'meter' ||
+        !question.meterTypeId ||
+        typeof answer?.value !== 'number'
+      )
+        continue;
+      const meter = await this.db.findOneBy(MeterTypeEntity, {
+        id: question.meterTypeId,
+      });
+      if (!meter) continue;
+      const drop = await this.meters.decrease(
+        plant.id,
+        meter,
+        answer.value,
+        answer.answeredAt,
+      );
+      if (drop)
+        errors.push({
+          field: `answers.${question.id}`,
+          message: drop.message.replace(
+            'give the reason',
+            'record that on the Meter readings tab with the reason first',
+          ),
+        });
     }
     if (errors.length) throw validationFailed(errors);
 

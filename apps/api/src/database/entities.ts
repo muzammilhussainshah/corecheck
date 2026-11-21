@@ -607,6 +607,8 @@ export class MeterReadingEntity {
   @Column('text') source!: 'manual' | 'reception';
   @Column('uuid', { nullable: true }) checkId!: string | null;
   @Column('uuid') recordedBy!: string;
+  /** Why a reading is below the meter's latest (replaced or reset meter). */
+  @Column('text', { nullable: true }) resetReason!: string | null;
   @Column({ type: 'timestamptz', insert: false, update: false })
   createdAt!: Date;
 }
