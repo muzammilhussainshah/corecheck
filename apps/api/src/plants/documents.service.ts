@@ -95,7 +95,17 @@ export class DocumentsService {
     const where = ['p.archived_at is null'];
     if (!auth.orgWideScope)
       where.push(`p.site_id = any(${params.add([...auth.siteIds])}::uuid[])`);
-    if (query.state) where.push(`s.state = ${params.add(query.state)}`);
+    // Awaiting Verification and Approaching Expiry are facts that can hold
+    // together, so neither hides the other (Milestone 2 bug 6): an unverified
+    // document is listed under Awaiting Verification even once expired, and
+    // one expiring soon under Approaching Expiry even while unverified.
+    if (query.state === 'awaiting_verification')
+      where.push(`s.verification = 'awaiting' and s.state <> 'archived'`);
+    else if (query.state === 'approaching_expiry')
+      where.push(
+        `s.expires_soon and s.state in ('approaching_expiry', 'awaiting_verification')`,
+      );
+    else if (query.state) where.push(`s.state = ${params.add(query.state)}`);
     else where.push(`s.state <> 'archived'`);
     if (query.documentTypeId)
       where.push(`d.document_type_id = ${params.add(query.documentTypeId)}`);
@@ -120,6 +130,8 @@ export class DocumentsService {
     )) as [{ total: number }];
     const rows = (await this.db.query(
       `select d.id, s.state, v.reference,
+              s.verification = 'awaiting' as "awaitingVerification",
+              s.expires_soon as "expiresSoon",
               to_char(v.expires_on, 'YYYY-MM-DD') as "expiresOn",
               v.uploaded_at as "uploadedAt",
               t.id as "typeId", t.name as "typeName",
@@ -132,6 +144,8 @@ export class DocumentsService {
     )) as Array<{
       id: string;
       state: DocumentRegisterRow['state'];
+      awaitingVerification: boolean;
+      expiresSoon: boolean;
       reference: string | null;
       expiresOn: string | null;
       uploadedAt: Date;
@@ -154,6 +168,8 @@ export class DocumentsService {
         },
         documentType: { id: row.typeId, name: row.typeName },
         state: row.state,
+        awaitingVerification: row.awaitingVerification,
+        expiresSoon: !!row.expiresSoon,
         reference: row.reference,
         expiresOn: row.expiresOn,
         uploadedAt: row.uploadedAt.toISOString(),
@@ -471,13 +487,24 @@ export class DocumentsService {
   ): Promise<PlantDocument[]> {
     if (documents.length === 0) return [];
     const ids = documents.map((document) => document.id);
+    // The same view the register reads, so the plant and the register
+    // always agree (Milestone 2 bug 6).
     const states = new Map(
       (
         (await this.db.query(
-          'select document_id as id, state from corecheck.plant_document_states where document_id = any($1::uuid[])',
+          `select document_id as id, state,
+                  verification = 'awaiting' as "awaitingVerification",
+                  expires_soon as "expiresSoon"
+             from corecheck.plant_document_states
+            where document_id = any($1::uuid[])`,
           [ids],
-        )) as Array<{ id: string; state: PlantDocument['state'] }>
-      ).map((row) => [row.id, row.state]),
+        )) as Array<{
+          id: string;
+          state: PlantDocument['state'];
+          awaitingVerification: boolean;
+          expiresSoon: boolean | null;
+        }>
+      ).map((row) => [row.id, row]),
     );
     const versions = await this.db.find(PlantDocumentVersionEntity, {
       where: ids.map((documentId) => ({ documentId })),
@@ -519,7 +546,7 @@ export class DocumentsService {
 
     return documents.map((document) => {
       const type = types.get(document.documentTypeId)!;
-      const state = states.get(document.id) ?? 'awaiting_verification';
+      const found = states.get(document.id);
       const active = !document.archivedAt;
       const current = versions.find((v) => v.id === document.currentVersionId);
       return {
@@ -530,7 +557,10 @@ export class DocumentsService {
           name: type.name,
           hasExpiry: type.hasExpiry,
         },
-        state,
+        state: found?.state ?? 'awaiting_verification',
+        awaitingVerification:
+          found?.awaitingVerification ?? current?.verification === 'awaiting',
+        expiresSoon: !!found?.expiresSoon,
         versions: versions
           .filter((v) => v.documentId === document.id)
           .map(toVersion),

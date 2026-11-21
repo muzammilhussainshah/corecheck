@@ -10,6 +10,8 @@ import type {
   PlantSaved,
   PlantSummary,
 } from '@corecheck/shared';
+import { storageUnavailable } from '../src/common/errors.js';
+import { StorageService } from '../src/common/storage.service.js';
 import { ComplianceSweepService } from '../src/plants/compliance-sweep.service.js';
 import {
   type ApiClient,
@@ -512,6 +514,99 @@ describe('Plant documents and compliance (FRD 9)', () => {
     ).body as OrganisationDetail;
     expect(after.usage.storedFiles).toBe(before.usage.storedFiles + 1);
     expect(after.usage.storageBytes).toBeGreaterThan(before.usage.storageBytes);
+  });
+
+  // Milestone 2 bug 6: uploads that failed on storage (bug 1) must leave no
+  // half-made document behind that the plant would list but the register not.
+  it('keeps nothing of an upload whose file could not be stored', async () => {
+    const plant = await newPlant();
+    const put = vi
+      .spyOn(StorageService.prototype, 'put')
+      .mockRejectedValueOnce(storageUnavailable());
+    try {
+      for (const fields of [
+        { documentTypeId: lolerId, reference: 'test', expiresOn: day(3) },
+      ])
+        await upload(org.admin, plant.id, fields, PNG, 'loler.png').expect(503);
+    } finally {
+      put.mockRestore();
+    }
+    expect((await documents(plant.id)).documents).toEqual([]);
+    const history = (
+      await org.admin.get(`/plants/${plant.id}/history`).expect(200)
+    ).body as Paginated<AuditEvent>;
+    expect(history.items.map((event) => event.action)).not.toContain(
+      'document.uploaded',
+    );
+  });
+
+  // Milestone 2 bug 6: an unverified document close to expiry must stay
+  // Awaiting Verification in the register and its counter, as on the plant.
+  it('keeps an unverified document near expiry Awaiting Verification everywhere', async () => {
+    const plant = await newPlant();
+    const reference = `NEAR-${uid()}`;
+    const uploaded = (
+      await upload(org.admin, plant.id, {
+        documentTypeId: lolerId,
+        reference,
+        issuedOn: day(0),
+        expiresOn: day(3),
+      }).expect(201)
+    ).body as PlantDocument;
+    const status = {
+      state: 'awaiting_verification',
+      awaitingVerification: true,
+      expiresSoon: true,
+    };
+    expect(uploaded).toMatchObject(status);
+    expect((await documents(plant.id)).documents[0]).toMatchObject(status);
+
+    const register = (state?: string) =>
+      org.admin
+        .get(`/documents?search=${reference}${state ? `&state=${state}` : ''}`)
+        .expect(200)
+        .then((res) => res.body as Paginated<DocumentRegisterRow>);
+    // The register says exactly what the plant says.
+    expect((await register()).items).toEqual([expect.objectContaining(status)]);
+    // Counted as awaiting verification, and its expiry as a warning too.
+    expect((await register('awaiting_verification')).total).toBe(1);
+    expect((await register('approaching_expiry')).total).toBe(1);
+
+    // Once verified, only the expiry warning is left.
+    await org.admin.post(`/documents/${uploaded.id}/verify`).expect(200);
+    expect((await register()).items[0]).toMatchObject({
+      state: 'approaching_expiry',
+      awaitingVerification: false,
+      expiresSoon: true,
+    });
+    expect((await register('awaiting_verification')).total).toBe(0);
+    expect((await register('approaching_expiry')).total).toBe(1);
+  });
+
+  it('keeps an expired document that was never verified Awaiting Verification too', async () => {
+    const plant = await newPlant();
+    const reference = `LAPSED-${uid()}`;
+    await upload(org.admin, plant.id, {
+      documentTypeId: lolerId,
+      reference,
+      issuedOn: day(-400),
+      expiresOn: day(-1),
+    }).expect(201);
+    const status = {
+      state: 'expired',
+      awaitingVerification: true,
+      expiresSoon: false,
+    };
+    expect((await documents(plant.id)).documents[0]).toMatchObject(status);
+    const register = (state?: string) =>
+      org.admin
+        .get(`/documents?search=${reference}${state ? `&state=${state}` : ''}`)
+        .expect(200)
+        .then((res) => res.body as Paginated<DocumentRegisterRow>);
+    expect((await register()).items).toEqual([expect.objectContaining(status)]);
+    expect((await register('expired')).total).toBe(1);
+    expect((await register('awaiting_verification')).total).toBe(1);
+    expect((await register('approaching_expiry')).total).toBe(0);
   });
 
   it('counts document files in the organisation’s storage usage (IAD-004)', async () => {

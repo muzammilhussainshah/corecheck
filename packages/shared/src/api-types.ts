@@ -340,6 +340,10 @@ export interface PlantDocument {
   documentType: IdName & { hasExpiry: boolean };
   /** Worked out from the current version and today's date (DOC-005). */
   state: Exclude<DocumentState, 'missing'>;
+  /** Not verified yet, whatever the state (it may also have expired). */
+  awaitingVerification: boolean;
+  /** Within the type's warning days: a warning beside the state. */
+  expiresSoon: boolean;
   /** Newest first; the first is the current version. */
   versions: DocumentVersion[];
   archivedAt: string | null;
@@ -371,6 +375,10 @@ export interface DocumentRegisterRow {
   plant: { id: string; assetId: string; name: string; site: IdName };
   documentType: IdName;
   state: Exclude<DocumentState, 'missing'>;
+  /** Not verified yet, whatever the state (it may also have expired). */
+  awaitingVerification: boolean;
+  /** Within the type's warning days: a warning beside the state. */
+  expiresSoon: boolean;
   reference: string | null;
   expiresOn: string | null;
   uploadedAt: string;

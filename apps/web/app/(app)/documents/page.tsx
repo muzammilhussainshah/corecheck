@@ -34,7 +34,7 @@ import {
   TableCard,
 } from '@corecheck/ui';
 import { AppPageHeader } from '../../../components/AppPageHeader';
-import { DocumentStateBadge } from '../../../components/plant/DocumentBadges';
+import { DocumentStatus } from '../../../components/plant/DocumentBadges';
 import { useDocumentsRegisterQuery, useSitesQuery } from '../../../lib/api';
 import { useConfigList } from '../../../lib/config';
 import { useSession } from '../../../lib/session';
@@ -183,7 +183,13 @@ export default function DocumentsPage() {
       key: 'state',
       header: 'Status',
       width: 190,
-      render: (row) => <DocumentStateBadge state={row.state} />,
+      render: (row) => (
+        <DocumentStatus
+          state={row.state}
+          awaitingVerification={row.awaitingVerification}
+          expiresSoon={row.expiresSoon}
+        />
+      ),
     },
   ];
 

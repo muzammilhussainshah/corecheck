@@ -1,4 +1,4 @@
-import { Text } from '@mantine/core';
+import { Group, Text } from '@mantine/core';
 import {
   DOCUMENT_STATE_LABELS,
   type DocumentState,
@@ -20,6 +20,32 @@ const STATE_TONES: Record<DocumentState, Tone> = {
 /** A document's status, written out (DOC-005, never colour alone). */
 export const DocumentStateBadge = ({ state }: { state: DocumentState }) => (
   <Pill tone={STATE_TONES[state]}>{DOCUMENT_STATE_LABELS[state]}</Pill>
+);
+
+/**
+ * A document's status plus what it would otherwise hide (Milestone 2 bug 6):
+ * an expired document still awaiting verification says so, and an
+ * unverified one expiring soon carries that warning too. The plant profile
+ * and the Documents register both show it, so they always agree.
+ */
+export const DocumentStatus = ({
+  state,
+  awaitingVerification,
+  expiresSoon,
+}: {
+  state: DocumentState;
+  awaitingVerification: boolean;
+  expiresSoon: boolean;
+}) => (
+  <Group gap={4} wrap="wrap">
+    <DocumentStateBadge state={state} />
+    {awaitingVerification && state === 'expired' && (
+      <DocumentStateBadge state="awaiting_verification" />
+    )}
+    {expiresSoon && state === 'awaiting_verification' && (
+      <DocumentStateBadge state="approaching_expiry" />
+    )}
+  </Group>
 );
 
 const COMPLIANCE_TONES: Record<PlantComplianceState, Tone> = {

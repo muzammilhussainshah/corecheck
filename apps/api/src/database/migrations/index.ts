@@ -8,6 +8,7 @@ import { MeterReadings1761100000000 } from './1761100000000-meter-readings.js';
 import { PlantImports1761200000000 } from './1761200000000-plant-imports.js';
 import { OrganisationPlantUsage1761300000000 } from './1761300000000-organisation-plant-usage.js';
 import { PlantSettingsAndImportRows1761400000000 } from './1761400000000-plant-settings-and-import-rows.js';
+import { DocumentStateFlags1761500000000 } from './1761500000000-document-state-flags.js';
 
 /** Every migration, oldest first. Listed explicitly so the ESM build needs no globbing. */
 export const MIGRATIONS = [
@@ -21,4 +22,5 @@ export const MIGRATIONS = [
   PlantImports1761200000000,
   OrganisationPlantUsage1761300000000,
   PlantSettingsAndImportRows1761400000000,
+  DocumentStateFlags1761500000000,
 ];

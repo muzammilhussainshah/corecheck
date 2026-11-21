@@ -62,7 +62,11 @@ import {
 import { useConfigList } from '../../lib/config';
 import { downloadFile, openFile } from '../../lib/download';
 import { useSession } from '../../lib/session';
-import { ComplianceBadge, DocumentStateBadge } from './DocumentBadges';
+import {
+  ComplianceBadge,
+  DocumentStateBadge,
+  DocumentStatus,
+} from './DocumentBadges';
 
 const fileUrl = (document: PlantDocument, versionId: string) =>
   `/documents/${document.id}/versions/${versionId}/file`;
@@ -326,7 +330,11 @@ function DocumentCard({
             <Text fw={600} c={COLORS.title}>
               {document.documentType.name}
             </Text>
-            <DocumentStateBadge state={document.state} />
+            <DocumentStatus
+              state={document.state}
+              awaitingVerification={document.awaitingVerification}
+              expiresSoon={document.expiresSoon}
+            />
           </Group>
           <Text size="sm" c={COLORS.muted}>
             {[
