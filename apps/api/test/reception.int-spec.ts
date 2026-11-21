@@ -786,6 +786,84 @@ describe('Reception templates and plant reception (FRD 8, 10)', () => {
         });
       });
 
+      // Milestone 2 bug 8: the banner kept showing blockers already resolved.
+      it('shows what stops approval now, keeping what was missing at submission as history', async () => {
+        await org.admin
+          .put('/config/plant-settings', { requiredFields: ['plantNumber'] })
+          .expect(200);
+        try {
+          const { docTypeId, plantTypeId } = await strictPlantType();
+          const templateId = await publishedTemplate('manual');
+          const plant = await newPlant(operative.client, plantTypeId);
+          const check = await assign(plant.id, templateId);
+          await answerAll(operative.client, check.id);
+          await operative.client
+            .post(`/receptions/${check.id}/submit`)
+            .expect(200);
+
+          const recorded = [
+            expect.stringMatching(
+              /^Document not valid: Insurance .* \(Missing\)$/,
+            ),
+            'Missing plant information: Plant Number',
+          ];
+          const reception = async () =>
+            (
+              (await org.admin.get(`/plants/${plant.id}/reception`).expect(200))
+                .body as PlantReception
+            ).current!;
+          const now = async () => ({
+            check: await reception(),
+            plant: await plantOf(plant.id),
+          });
+
+          let state = await now();
+          expect(state.check.outcomeReasons).toEqual(recorded);
+          expect(state.check.currentBlockers).toEqual(recorded);
+          expect(state.plant.receptionBlockers).toEqual(recorded);
+
+          // The document is put right: only the detail is still missing.
+          await uploadVerified(plant.id, docTypeId);
+          state = await now();
+          expect(state.check.currentBlockers).toEqual([
+            'Missing plant information: Plant Number',
+          ]);
+          expect(state.plant.receptionBlockers).toEqual([
+            'Missing plant information: Plant Number',
+          ]);
+
+          // Plant Number no longer required: nothing stops approval.
+          await org.admin
+            .put('/config/plant-settings', { requiredFields: [] })
+            .expect(200);
+          state = await now();
+          expect(state.check.currentBlockers).toEqual([]);
+          expect(state.plant).toMatchObject({
+            status: 'restricted',
+            heldByReception: true,
+            receptionBlockers: [],
+          });
+          // What was missing at submission stays on record.
+          expect(state.check.outcomeReasons).toEqual(recorded);
+          expect(state.check.submissions[0]!.outcomeReasons).toEqual(recorded);
+
+          await supervisor.client
+            .post(`/receptions/${check.id}/approve`)
+            .expect(200);
+          state = await now();
+          expect(state.check).toMatchObject({
+            status: 'approved',
+            currentBlockers: null,
+          });
+          expect(state.check.submissions[0]!.outcomeReasons).toEqual(recorded);
+          expect(state.plant.status).toBe('approved');
+        } finally {
+          await org.admin
+            .put('/config/plant-settings', { requiredFields: [] })
+            .expect(200);
+        }
+      });
+
       it('still offers Return to service once approved plant is restricted again', async () => {
         const { docTypeId, plantTypeId } = await strictPlantType();
         const templateId = await publishedTemplate('automatic');

@@ -555,11 +555,16 @@ export default function PlantProfilePage() {
           icon={<IconAlertTriangle size={18} />}
           title="Restricted/Offline until the reception is approved"
         >
-          <Text size="sm">
-            {plant.statusNote ?? 'Mandatory documents or details are missing.'}
-          </Text>
+          {/* What stops approval now, not when it was submitted (bug 8). */}
+          {plant.receptionBlockers.map((blocker) => (
+            <Text size="sm" key={blocker}>
+              {blocker}
+            </Text>
+          ))}
           <Text size="sm" mt={4}>
-            Resolve these, then approve the reception.{' '}
+            {plant.receptionBlockers.length
+              ? 'Resolve these, then approve the reception.'
+              : 'Its documents and details are now in order: approve the reception.'}{' '}
             <Anchor
               component={Link}
               href={`/plant/${plant.id}?tab=reception`}
@@ -663,9 +668,20 @@ export default function PlantProfilePage() {
                         />
                       ),
                     },
-                    ...(plant.statusNote
-                      ? [{ label: 'Reason', value: plant.statusNote }]
-                      : []),
+                    // Held by its reception: why now, not why when it was
+                    // submitted (bug 8); the original note is in History.
+                    ...(plant.heldByReception
+                      ? [
+                          {
+                            label: 'Reason',
+                            value: plant.receptionBlockers.length
+                              ? plant.receptionBlockers.join('; ')
+                              : 'Waiting for the reception to be approved',
+                          },
+                        ]
+                      : plant.statusNote
+                        ? [{ label: 'Reason', value: plant.statusNote }]
+                        : []),
                     {
                       label: 'Documents',
                       value: <ComplianceBadge state={plant.compliance} />,

@@ -426,10 +426,8 @@ export class ReceptionService {
       reasons = [];
     } else {
       outcome = 'awaiting_approval';
-      reasons = [
-        ...documents.map((document) => `Document not valid: ${document}`),
-        ...missing.map((detail) => `Missing plant information: ${detail}`),
-      ];
+      // The same wording the live banner uses (bug 8).
+      reasons = await this.plants.approvalBlockers(plant);
     }
 
     await this.db.insert(ReceptionSubmissionEntity, {
@@ -784,6 +782,15 @@ export class ReceptionService {
       checkId: fresh.id,
     });
     const evidence = await this.activeEvidence(fresh.id);
+    // Awaiting approval: what stops it now, never only what stopped it at
+    // submission (Milestone 2 bug 8). The plant is read again so details
+    // added since are seen.
+    const currentBlockers =
+      fresh.status === 'submitted'
+        ? await this.plants.approvalBlockers(
+            await this.db.findOneByOrFail(PlantEntity, { id: plant.id }),
+          )
+        : null;
     const submissions = await this.db.find(ReceptionSubmissionEntity, {
       where: { checkId: fresh.id },
       order: { submittedAt: 'DESC' },
@@ -862,6 +869,7 @@ export class ReceptionService {
       reviewedAt: fresh.reviewedAt?.toISOString() ?? null,
       reviewComment: fresh.reviewComment,
       outcomeReasons: fresh.outcomeReasons,
+      currentBlockers,
       capabilities: {
         answer: editable && has('reception.complete'),
         submit: editable && has('reception.complete'),

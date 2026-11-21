@@ -608,6 +608,22 @@ export class PlantsService {
   }
 
   /**
+   * What stops the plant's reception being approved right now (DOC-006,
+   * PLT-008): mandatory documents not valid and required details missing,
+   * worked out afresh each time. Reception records these at submission;
+   * screens show this live list so a resolved blocker never still looks
+   * unresolved (Milestone 2 bug 8).
+   */
+  async approvalBlockers(plant: PlantEntity): Promise<string[]> {
+    const documents = await this.compliance.blockers(plant.id);
+    const missing = await this.missingDetails(plant);
+    return [
+      ...documents.map((document) => `Document not valid: ${document}`),
+      ...missing.map((detail) => `Missing plant information: ${detail}`),
+    ];
+  }
+
+  /**
    * Mandatory details the plant still lacks (PLT-008, REC-007): those the
    * organisation requires, and required custom fields added since it was
    * registered.
@@ -1045,6 +1061,7 @@ export class PlantsService {
           }
         : null,
       heldByReception: held,
+      receptionBlockers: held ? await this.approvalBlockers(plant) : [],
       createdAt: plant.createdAt.toISOString(),
       createdBy: nameOf(plant.createdBy) ?? 'Unknown',
       capabilities: this.capabilities(auth, plant, held),

@@ -294,6 +294,11 @@ export interface PlantDetail extends PlantSummary {
    * brings it Online.
    */
   heldByReception: boolean;
+  /**
+   * While held: what still stops approval, worked out now (documents not
+   * valid, required details missing). Empty once all is in order.
+   */
+  receptionBlockers: string[];
   createdAt: string;
   createdBy: string;
   /** What the signed-in user may do with this plant. */
@@ -640,7 +645,13 @@ export interface ReceptionCheck {
   reviewedBy: string | null;
   reviewedAt: string | null;
   reviewComment: string | null;
+  /** Why it was held, as recorded at submission; kept as history. */
   outcomeReasons: string[];
+  /**
+   * While awaiting approval: what stops approval now, worked out afresh
+   * (Milestone 2 bug 8). Null otherwise. Empty means ready to approve.
+   */
+  currentBlockers: string[] | null;
   capabilities: {
     answer: boolean;
     submit: boolean;

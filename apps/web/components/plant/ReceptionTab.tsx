@@ -210,6 +210,13 @@ function CheckView({
   // approving then brings it Online.
   const heldOffline =
     check.status === 'submitted' && plantStatus === 'restricted';
+  // Awaiting approval: the blockers as they are now, not as recorded at
+  // submission (Milestone 2 bug 8); otherwise the recorded outcome.
+  const blockers = check.currentBlockers ?? check.outcomeReasons;
+  const readyNow =
+    check.currentBlockers !== null &&
+    check.currentBlockers.length === 0 &&
+    (heldOffline || check.outcomeReasons.length > 0);
   const { me } = useSession();
   const tz = me?.organisation.timeZone;
   const { data: meters } = useConfigList('meter-types', {
@@ -354,7 +361,7 @@ function CheckView({
             {check.reviewComment}
           </Alert>
         )}
-        {check.outcomeReasons.length > 0 && (
+        {blockers.length > 0 && (
           <Alert
             mt="md"
             color={
@@ -369,7 +376,7 @@ function CheckView({
             }
           >
             <Stack gap={2}>
-              {check.outcomeReasons.map((reason) => (
+              {blockers.map((reason) => (
                 <Text size="sm" key={reason}>
                   {reason}
                 </Text>
@@ -382,6 +389,22 @@ function CheckView({
                 </Text>
               )}
             </Stack>
+          </Alert>
+        )}
+        {readyNow && (
+          <Alert
+            mt="md"
+            color="green"
+            icon={<IconCheck size={18} />}
+            title="Ready to approve"
+          >
+            <Text size="sm">
+              What this reception was waiting for is now in order.
+              {heldOffline
+                ? ' The plant stays Restricted/Offline until the reception is approved.'
+                : ''}{' '}
+              What was missing at submission is kept under Submissions.
+            </Text>
           </Alert>
         )}
       </Card>
