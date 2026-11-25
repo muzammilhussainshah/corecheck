@@ -1,6 +1,7 @@
 import type { ErrorCode } from './errors.js';
 import type { PermissionCode } from './permissions.js';
 import type { ImportRowStatus } from './plant-import.js';
+import type { TemplateImportRowStatus } from './template-import.js';
 import type { PocCheckStatus, PocQuestionKey } from './poc.js';
 import type { AnswerValue, TemplateQuestion } from './reception.js';
 import type {
@@ -1039,4 +1040,101 @@ export interface WorkSummary {
     critical: number;
     assignedToMe: number;
   };
+}
+
+// -------------------------------------------------- check template import
+
+export interface TemplateImportSummary {
+  id: string;
+  fileName: string;
+  createdBy: string;
+  createdAt: string;
+  counts: Record<TemplateImportRowStatus, number>;
+  /** Templates the file holds, and how many were created as Drafts. */
+  templates: number;
+  imported: number;
+}
+
+export interface TemplateImportRow {
+  id: string;
+  rowNumber: number;
+  /** Values by column key. */
+  data: Record<string, string>;
+  status: TemplateImportRowStatus;
+  problems: string[];
+}
+
+export interface TemplateImportGroup {
+  name: string;
+  /** A template is created only when every one of its rows is ready. */
+  status: TemplateImportRowStatus;
+  rowNumbers: number[];
+  questions: number;
+  template: IdName | null;
+}
+
+export interface TemplateImportDetail extends TemplateImportSummary {
+  columns: Array<{ key: string; label: string; required: boolean }>;
+  rows: TemplateImportRow[];
+  groups: TemplateImportGroup[];
+}
+
+// -------------------------------------------------------------- dashboard
+
+/**
+ * The dashboard (FRD 6) within the user's scope; a section is null when the
+ * user may not see that kind of record. Dates are in the organisation's
+ * time zone (DSH-AC-03).
+ */
+export interface DashboardSummary {
+  period: { today: string; weekEnd: string; monthEnd: string; recentFrom: string };
+  plant: {
+    pendingReception: number;
+    awaitingApproval: number;
+    online: number;
+    offline: number;
+  } | null;
+  /**
+   * Plant whose mandatory documents are missing, expired or not valid (the
+   * register's "Documents not valid" filter), and documents expired or
+   * approaching expiry (the Documents page filters).
+   */
+  documents: {
+    plantNotValid: number;
+    expired: number;
+    approachingExpiry: number;
+  } | null;
+  checks: {
+    mine: number;
+    dueToday: number;
+    dueThisWeek: number;
+    dueThisMonth: number;
+    overdue: number;
+    awaitingReview: number;
+    failedRecently: number;
+    raisedDefectsRecently: number;
+  } | null;
+  recentlyCompleted: Array<{
+    id: string;
+    ref: string;
+    plant: { id: string; assetId: string; name: string };
+    template: string;
+    purpose: TemplatePurpose;
+    completedBy: string;
+    completedAt: string;
+    failures: number;
+  }>;
+  defects: {
+    minor: number;
+    major: number;
+    critical: number;
+    assignedToMe: number;
+  } | null;
+  statusChanges: Array<{
+    plant: { id: string; assetId: string; name: string };
+    action: string;
+    summary: string;
+    by: string | null;
+    at: string;
+  }>;
 }

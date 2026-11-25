@@ -13,7 +13,8 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
-import { IconPlus } from '@tabler/icons-react';
+import { IconFileImport, IconPlus } from '@tabler/icons-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
@@ -217,9 +218,21 @@ export default function TemplatesPage() {
         description="Reception, operational, technical, maintenance and Defect verification checks. Published versions never change; editing starts a new version."
         actions={
           can('templates.manage') && (
-            <Button leftSection={<IconPlus size={16} />} onClick={open}>
-              Add template
-            </Button>
+            <>
+              {can('templates.configure_questions') && (
+                <Button
+                  variant="default"
+                  leftSection={<IconFileImport size={16} />}
+                  component={Link}
+                  href="/admin/templates/import"
+                >
+                  Import
+                </Button>
+              )}
+              <Button leftSection={<IconPlus size={16} />} onClick={open}>
+                Add template
+              </Button>
+            </>
           )
         }
       />

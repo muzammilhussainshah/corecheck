@@ -110,6 +110,7 @@ export const AUDIT_ACTIONS = {
   'reception.returned': 'Reception returned for correction',
   'reception.cancelled': 'Reception check cancelled',
   'template.duplicated': 'Template duplicated',
+  'template.imported': 'Templates imported as Draft',
   'template.applied_to_checks': 'New version applied to checks not started',
 
   // Schedules (FRD 11)
@@ -150,6 +151,7 @@ export const AUDIT_ACTIONS = {
   'defect.no_approver': 'No separate approver available',
   'defect.closed': 'Defect closed',
   'defect.reopened': 'Defect reopened',
+  'defect.exported': 'Defect list exported',
   'plant.defect_override': 'Returned to service despite an open Defect',
 
   // Internal provisioning (IAD-004)

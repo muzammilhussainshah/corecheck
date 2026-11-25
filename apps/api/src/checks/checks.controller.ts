@@ -25,6 +25,7 @@ import {
   rescheduleCheckSchema,
   reviewCheckSchema,
   saveCheckAnswersSchema,
+  type DashboardSummary,
   type WorkSummary,
 } from '@corecheck/shared';
 import type { CustomerAuth } from '../auth/auth-context.js';
@@ -33,6 +34,8 @@ import { IdParam, ValidBody, ValidQuery } from '../common/validation.js';
 import type { UploadedFile as Upload } from '../plants/documents.service.js';
 import { CheckExportService } from './check-export.service.js';
 import { ChecksService } from './checks.service.js';
+import { DashboardService } from './dashboard.service.js';
+import { ListExportService } from './list-export.service.js';
 
 const file = (
   res: Response,
@@ -55,7 +58,14 @@ export class ChecksController {
   constructor(
     private readonly checks: ChecksService,
     private readonly exporter: CheckExportService,
+    private readonly dashboard: DashboardService,
+    private readonly lists: ListExportService,
   ) {}
+
+  @Get('dashboard')
+  dashboardSummary(@CurrentAuth() auth: CustomerAuth): Promise<DashboardSummary> {
+    return this.dashboard.summary(auth);
+  }
 
   @Get('work/summary')
   summary(@CurrentAuth() auth: CustomerAuth): Promise<WorkSummary> {
@@ -69,6 +79,17 @@ export class ChecksController {
     @ValidQuery(listChecksQuerySchema) query: z.output<typeof listChecksQuerySchema>,
   ): Promise<Paginated<CheckSummary>> {
     return this.checks.list(auth, query);
+  }
+
+  /** The list as shown, with its filters, as CSV (LST-004). */
+  @Get('checks/export')
+  @RequirePermissions('checks.view', 'reports.export')
+  async exportList(
+    @CurrentAuth() auth: CustomerAuth,
+    @ValidQuery(listChecksQuerySchema) query: z.output<typeof listChecksQuerySchema>,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    return file(res, await this.lists.checksCsv(auth, query));
   }
 
   @Post('checks')

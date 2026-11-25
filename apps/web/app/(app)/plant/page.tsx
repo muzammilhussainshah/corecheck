@@ -22,7 +22,7 @@ import {
   IconPlus,
   IconQrcode,
 } from '@tabler/icons-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import {
   type ApiError,
@@ -100,8 +100,16 @@ export default function PlantRegisterPage() {
   const { can } = useSession();
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebouncedValue(search, 300);
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
-  const [draft, setDraft] = useState<Filters>(NO_FILTERS);
+  // A dashboard figure opens the register already filtered (DSH-AC-01);
+  // the filter can then be changed or cleared here.
+  const params = useSearchParams();
+  const fromLink: Filters = {
+    ...NO_FILTERS,
+    status: (params.get('status') as StatusFilter | null) ?? null,
+    compliance: params.get('compliance'),
+  };
+  const [filters, setFilters] = useState<Filters>(fromLink);
+  const [draft, setDraft] = useState<Filters>(fromLink);
   const [panelOpen, panel] = useDisclosure();
   const [sort, setSort] = useState<SortState>({
     field: 'assetId',

@@ -13,6 +13,7 @@ import type {
   ScheduleUnit,
   SeparationRule,
   TemplateEligibility,
+  TemplateImportRowStatus,
   TemplateRecurrence,
   ClientType,
   CustomFieldType,
@@ -898,6 +899,28 @@ export class NotificationEntity {
   @Column('timestamptz', { nullable: true }) readAt!: Date | null;
 }
 
+@Entity({ schema: SCHEMA, name: 'template_imports' })
+export class TemplateImportEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') fileName!: string;
+  @Column('uuid') createdBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'template_import_rows' })
+export class TemplateImportRowEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') importId!: string;
+  @Column('integer') rowNumber!: number;
+  @Column('jsonb') data!: Record<string, string>;
+  @Column('text') status!: TemplateImportRowStatus;
+  @Column('jsonb') problems!: string[];
+  @Column('uuid', { nullable: true }) templateId!: string | null;
+}
+
 export const ENTITIES = [
   OrganisationEntity,
   RoleEntity,
@@ -949,4 +972,6 @@ export const ENTITIES = [
   DefectEntity,
   DefectEvidenceEntity,
   NotificationEntity,
+  TemplateImportEntity,
+  TemplateImportRowEntity,
 ];

@@ -406,6 +406,7 @@ export const CHECK_VIEWS = [
   'overdue',
   'upcoming',
   'review',
+  'completed',
   'all',
 ] as const;
 export type CheckView = (typeof CHECK_VIEWS)[number];
@@ -448,6 +449,7 @@ export const NOTIFICATION_KINDS = [
   'check_awaiting_review',
   'defect_raised',
   'defect_assigned',
+  'defect_closed',
   'verification_awaiting_approval',
   'verification_no_approver',
 ] as const;

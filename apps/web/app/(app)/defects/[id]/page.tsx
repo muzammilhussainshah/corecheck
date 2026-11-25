@@ -327,7 +327,8 @@ function ReasonModal({
 
 export default function DefectPage() {
   const { id } = useParams<{ id: string }>();
-  const { me } = useSession();
+  const session = useSession();
+  const { me } = session;
   const tz = me?.organisation.timeZone;
   const { data: defect, error } = useDefectQuery(id);
   const [act, acting] = useDefectActionMutation();
@@ -375,7 +376,12 @@ export default function DefectPage() {
                 Move to In Progress
               </Button>
             )}
-            {defect.status !== 'closed' && (
+            {/* Offered only to those who may close it; disabled until the
+                prerequisites listed below are met (VAL-003, DFW-010). */}
+            {defect.status !== 'closed' &&
+              session.can('defects.close') &&
+              (session.can('defects.assign') ||
+                defect.assignee?.id === session.me?.user.id) && (
               <Button
                 leftSection={<IconCircleCheck size={16} />}
                 disabled={!can.close}

@@ -19,3 +19,4 @@ export * from './reception.js';
 export * from './roles.js';
 export * from './schemas.js';
 export * from './statuses.js';
+export * from './template-import.js';

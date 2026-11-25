@@ -152,3 +152,11 @@ Branch: `milestone3`. Scope: FRD sections 10, 11, 12, 13 (+ 21 agar mobile M3 me
 - Browser check mein mile aur theek kiye: photo upload par unsaved jawab mit jaate the; akela verification template dobara click par khali ho jata tha; Defects + documents dono ki rok ek saath nahi dikhti thi; checks list mein bina due date wale upar aate the.
 - **Baqi:** mobile app abhi M1 PoC par hai (web: Checks › Mobile sync demo). Staging par migration.
 - M2 se: staging deploy abhi baqi (Render par `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `WEB_APP_URL`).
+- **Cross-check (FRD poora milaya):** M3 = API + customer web app. Mobile ka asli offline kaam, email (Brevo) aur push (M1 design doc ke mutabiq) M4 mein hain. Theek kiya: Checks par "Completed" view (NAV-002); checks par site/template/status filters + "Clear filters", defects par site filter (LST-002/003); dashboard "My checks" count ab list se barabar (DSH-AC-01); "Close Defect" sirf unhein dikhta hai jo close kar sakte hain (VAL-003).
+- **Faisle baqi (client se):** reports (FRD 18) kis milestone mein; template ki "Applicable plant types" lazmi ho ya khali = sab (Appendix B); Supervisor Defect reopen kar sake ya nahi (DFW-011 vs Appendix C — abhi Appendix C: sirf Manager/Admin).
+- **Izafa (aap ke kehne par):**
+  - Check-template import (FRD 19.4): Excel/CSV template (wazahat aur allowed values ke saath), upload → har row ki jaanch (sawal ki type, mandatory, evidence, triggers, follow-up, plant types, disciplines, meter types, naam ka takrao) → app mein row theek karna → sirf Draft templates banana → error report. 3 integration tests + browser test.
+  - Dashboard (FRD 6): due today/week/month, overdue, review, 7 din ke failed aur Defect wale checks, severity ke hisaab se Defects (Critical alag, icon + text), plant Online/Offline aur reception, documents ke masle, haal ke mukammal checks (plant, type, kis ne, kab, result), haal ki plant status tabdeeliyan. Har number click par wahi filtered list kholta hai aur gintiyan list se barabar hain (test se sabit).
+  - Checks aur Defects list ka CSV export usi filter aur scope ke saath (LST-004).
+  - Defect close hone par notification (NTF-005).
+

@@ -249,9 +249,28 @@ Migration `1761700000000-checks-and-defects.ts`.
   also took plant Offline blocks return to service until closed, unless a
   holder of `defects.override_restriction` overrides with a reason. Closing
   never returns plant to service.
+- **Template import (FRD 19.4).** Migration
+  `1761800000000-template-imports.ts`. One spreadsheet row per question;
+  rows with the same Template Name make one template, template-wide columns
+  taken from its first row. Every row is checked as a question (type,
+  mandatory, evidence, triggers, follow-up) and against the plant types,
+  disciplines and meter types it names; existing template names are refused.
+  Rows are corrected in the app and the whole file re-checked; a template is
+  created only when all its rows are ready, through the same path as one made
+  by hand, always as a Draft (ITM-001). Error report as CSV.
+- **Dashboard (FRD 6).** `GET /dashboard`: plant awaiting reception or
+  approval and Online/Offline, checks due today/this week/this month,
+  overdue, awaiting review, failed and Defect-raising checks in the last 7
+  days, open Defects by severity, plant with mandatory documents not valid,
+  expired and expiring documents, recently completed checks (plant, type,
+  completed by, time, result) and recent plant status changes. Each count
+  uses the same conditions as the list it opens, and the lists read those
+  filters from the address so they can be changed or cleared there.
+- **List exports (LST-004).** Checks and Defects lists export as CSV from
+  the same query, filters and scope (`reports.export`), audited.
 - **Notifications.** In-app only (`notifications` table, header bell):
-  check due/assigned, overdue, returned, awaiting review, Defect raised and
-  assigned, verification awaiting approval, no separate approver. Email and
+  check due/assigned, overdue, returned, awaiting review, Defect raised,
+  assigned and closed, verification awaiting approval, no separate approver. Email and
   push come with the notifications milestone.
 
 ## 16. Milestone 3 acceptance evidence
@@ -276,6 +295,9 @@ Migration `1761700000000-checks-and-defects.ts`.
 | Closing does not return plant to service (DEF-AC-04)                   | `checks.int-spec.ts`, browser test                                       |
 | Overrides keep the failure and the overriding user (DEF-AC-05)         | `checks.int-spec.ts`, browser test                                       |
 | Check, schedule and Defect data isolated between organisations         | `checks-isolation.int-spec.ts`                                           |
+| Template import: preview, correction, Drafts only (ITM-001..003)       | `template-imports.int-spec.ts`, browser test                             |
+| Dashboard counts equal their lists, scoped, in the org time zone (DSH-AC-01..03) | `checks.int-spec.ts`, `checks-isolation.int-spec.ts`, browser test |
+| List exports use the list's filters and scope (LST-004)                | `checks.int-spec.ts`                                                     |
 
 ## 17. Milestone 3 items open
 
@@ -284,3 +306,5 @@ Migration `1761700000000-checks-and-defects.ts`.
 | Mobile app (FRD 21)          | The mobile app still runs the Milestone 1 offline-sync proof of concept (web: Checks › Mobile sync demo). Completing real checks offline on the phone is not built; confirm whether it belongs to Milestone 3 or the mobile milestone. |
 | Email and push notifications | In-app only; overdue and approval alerts are recorded so Brevo email and push can send them later (NTF-002).                                                                           |
 | Staging sign-off             | Run `db:migrate` on staging; set `SCHEDULE_SWEEP_MINUTES` if 15 minutes is not wanted.                                                                                                  |
+| Reports (FRD 18)             | The standard reports (Check History, Defect Register and the others) are not built; the Reports page is a placeholder. The Checks and Defects lists export as CSV with their filters. Confirm the reports milestone. |
+| Interpretations to confirm   | Appendix B lists applicable plant types as required: an empty list is read as "all plant types". DFW-011 lets Supervisors reopen Defects but Appendix C does not: Appendix C is followed (Manager and Admin). Collaboration refreshes every 10 seconds rather than live push (CHK-003). |

@@ -9,7 +9,7 @@ import {
   IconHourglass,
   IconX,
 } from '@tabler/icons-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import {
   type ApiError,
@@ -61,8 +61,14 @@ export default function DocumentsPage() {
   const tz = me?.organisation.timeZone;
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebouncedValue(search, 300);
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
-  const [draft, setDraft] = useState<Filters>(NO_FILTERS);
+  // A dashboard figure opens the list already filtered (DSH-AC-01).
+  const params = useSearchParams();
+  const fromLink: Filters = {
+    ...NO_FILTERS,
+    state: (params.get('state') as State | null) ?? null,
+  };
+  const [filters, setFilters] = useState<Filters>(fromLink);
+  const [draft, setDraft] = useState<Filters>(fromLink);
   const [panelOpen, panel] = useDisclosure();
   const [sort, setSort] = useState<SortState>({
     field: 'expiresOn',

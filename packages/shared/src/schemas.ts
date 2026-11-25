@@ -949,6 +949,15 @@ export const listChecksQuerySchema = paginationQuerySchema.extend({
   templateId: id.optional(),
   defectId: id.optional(),
   search: z.string().trim().max(100).optional(),
+  /** Due date range, for the dashboard's Due Checks area (DSH-002). */
+  dueFrom: isoDate.optional(),
+  dueTo: isoDate.optional(),
+  /** Submitted from this date on (recent work on the dashboard). */
+  submittedFrom: isoDate.optional(),
+  /** Submitted with at least one failed answer. */
+  failed: booleanQuery,
+  /** Raised at least one Defect. */
+  withDefects: booleanQuery,
 });
 export type ListChecksQuery = z.input<typeof listChecksQuerySchema>;
 

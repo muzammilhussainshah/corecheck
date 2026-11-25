@@ -129,7 +129,11 @@ test('Milestone 3: check fails, raises a Defect, verification under separation o
     await override.click();
     // ...and documents not in order need a review date too (DOC-008).
     const reviewBy = returning.getByRole('textbox', { name: /Review by/ });
-    if (await reviewBy.isVisible().catch(() => false)) {
+    const needsReview = await reviewBy
+      .waitFor({ timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
+    if (needsReview) {
       await reviewBy.fill(new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10));
       await page.keyboard.press('Tab');
       await override.click();
@@ -147,4 +151,43 @@ test('Milestone 3: check fails, raises a Defect, verification under separation o
     'Plant returned to service',
   ])
     await expect(page.getByRole('cell', { name: event }).first()).toBeVisible();
+});
+
+test('Milestone 3: import check templates as Drafts, and open dashboard figures as filtered lists', async ({
+  page,
+}) => {
+  await signIn(page);
+
+  // Template import: preview, then Drafts only (FRD 19.4).
+  const name = `E2E import ${Date.now()}`;
+  const csv = [
+    'Template Name,Purpose,Question,Answer Type,Defect Severity,Follow-up Of Question,Asked When',
+    `${name},Operational,Guards fitted,Pass / fail,Major,,`,
+    `${name},Operational,Which guard is missing?,Text,,1,Fails`,
+  ].join('\n');
+  await page.goto(`${WEB}/admin/templates/import`);
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'templates.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(csv),
+  });
+  await page.getByRole('button', { name: 'Upload and check' }).click();
+  await page.waitForURL(/\/admin\/templates\/import\/[0-9a-f-]{36}$/);
+  await expect(page.getByText(name).first()).toBeVisible();
+  await page.getByRole('button', { name: /Create 1 Draft template/ }).click();
+  await page.getByRole('link', { name: 'Review and publish' }).click();
+  await page.waitForURL(/\/admin\/templates\/[0-9a-f-]{36}$/);
+  await expect(page.getByText('Draft v1')).toBeVisible();
+  await expect(page.getByText('Published v1')).toHaveCount(0);
+
+  // Dashboard figures open their list already filtered (DSH-AC-01).
+  await page.goto(`${WEB}/`);
+  await expect(page.getByText('Due checks')).toBeVisible();
+  await page.getByRole('link', { name: /Due this week/ }).click();
+  await page.waitForURL(/\/checks\?view=due/);
+  await expect(page.getByRole('button', { name: /Clear filter: Due this week/ })).toBeVisible();
+  await page.goto(`${WEB}/`);
+  await page.getByRole('link', { name: /Critical/ }).first().click();
+  await page.waitForURL(/\/defects\?status=active&severity=critical/);
+  await expect(page.getByRole('combobox', { name: 'Severity' })).toHaveValue('Critical');
 });

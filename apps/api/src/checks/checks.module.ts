@@ -4,8 +4,10 @@ import { TemplatesModule } from '../templates/templates.module.js';
 import { CheckExportService } from './check-export.service.js';
 import { ChecksController } from './checks.controller.js';
 import { ChecksService } from './checks.service.js';
+import { DashboardService } from './dashboard.service.js';
 import { DefectsController } from './defects.controller.js';
 import { DefectsService } from './defects.service.js';
+import { ListExportService } from './list-export.service.js';
 import { ScheduleSweepService } from './schedule-sweep.service.js';
 import { SchedulesController } from './schedules.controller.js';
 import { SchedulesService } from './schedules.service.js';
@@ -19,7 +21,9 @@ import { SchedulesService } from './schedules.service.js';
     ScheduleSweepService,
     ChecksService,
     CheckExportService,
+    DashboardService,
     DefectsService,
+    ListExportService,
   ],
   exports: [ScheduleSweepService],
 })

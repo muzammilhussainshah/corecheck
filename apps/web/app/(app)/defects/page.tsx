@@ -1,7 +1,9 @@
 'use client';
 
-import { Group, Select, SimpleGrid, Switch } from '@mantine/core';
+import { Button, Group, Select, SimpleGrid, Switch } from '@mantine/core';
+import { IconDownload } from '@tabler/icons-react';
 import { useDebouncedValue } from '@mantine/hooks';
+import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import {
   type ApiError,
@@ -22,15 +24,28 @@ import {
 } from '@corecheck/ui';
 import { AppPageHeader } from '../../../components/AppPageHeader';
 import { DefectsTable } from '../../../components/checks/DefectsTable';
-import { useDefectsQuery, useWorkSummaryQuery } from '../../../lib/api';
+import {
+  useDefectsQuery,
+  useSitesQuery,
+  useWorkSummaryQuery,
+} from '../../../lib/api';
+import { downloadFile } from '../../../lib/download';
 import { useSession } from '../../../lib/session';
 
 /** Defects raised from failed answers (FRD 13), within the user's sites. */
 export default function DefectsPage() {
-  const { me } = useSession();
-  const [status, setStatus] = useState<DefectStatus | 'active' | null>('active');
-  const [severity, setSeverity] = useState<DefectSeverity | null>(null);
-  const [mine, setMine] = useState(false);
+  const { me, can } = useSession();
+  // A dashboard figure opens the list already filtered (DSH-AC-01).
+  const params = useSearchParams();
+  const [status, setStatus] = useState<DefectStatus | 'active' | null>(
+    (params.get('status') as DefectStatus | 'active' | null) ?? 'active',
+  );
+  const [severity, setSeverity] = useState<DefectSeverity | null>(
+    params.get('severity') as DefectSeverity | null,
+  );
+  const [mine, setMine] = useState(params.get('mine') === 'true');
+  const [siteId, setSiteId] = useState<string | null>(null);
+  const { data: sites } = useSitesQuery();
   const [search, setSearch] = useState('');
   const [term] = useDebouncedValue(search.trim(), 300);
   const [page, setPage] = useState(1);
@@ -40,6 +55,7 @@ export default function DefectsPage() {
     status: status ?? undefined,
     severity: severity ?? undefined,
     assignedToMe: mine,
+    siteId: siteId ?? undefined,
     search: term || undefined,
     page,
     pageSize,
@@ -50,6 +66,29 @@ export default function DefectsPage() {
       <AppPageHeader
         title="Defects"
         description="Raised only by failed check or reception answers whose question has a defect trigger. Closing a Defect does not return plant to service."
+        actions={
+          can('reports.export') && (
+            <Button
+              variant="default"
+              leftSection={<IconDownload size={16} />}
+              onClick={() => {
+                // The list as shown, with the same filters (LST-004).
+                const query = new URLSearchParams(
+                  Object.entries({
+                    status: status ?? undefined,
+                    severity: severity ?? undefined,
+                    siteId: siteId ?? undefined,
+                    assignedToMe: mine ? 'true' : undefined,
+                    search: term || undefined,
+                  }).filter((entry): entry is [string, string] => !!entry[1]),
+                );
+                void downloadFile(`/defects/export?${query.toString()}`, 'defects.csv');
+              }}
+            >
+              Export CSV
+            </Button>
+          )
+        }
       />
       {summary && (
         <SimpleGrid cols={{ base: 2, md: 4 }} mb="md">
@@ -89,6 +128,15 @@ export default function DefectsPage() {
                 data={DEFECT_SEVERITIES.map((value) => ({ value, label: DEFECT_SEVERITY_LABELS[value] }))}
                 value={severity}
                 onChange={(value) => { setSeverity(value as DefectSeverity | null); reset(); }}
+              />
+              <Select
+                aria-label="Site"
+                w={170}
+                clearable
+                placeholder="All sites"
+                data={(sites ?? []).map((site) => ({ value: site.id, label: site.name }))}
+                value={siteId}
+                onChange={(value) => { setSiteId(value); reset(); }}
               />
               <Switch label="Assigned to me" checked={mine} onChange={(event) => { setMine(event.currentTarget.checked); reset(); }} />
             </Group>

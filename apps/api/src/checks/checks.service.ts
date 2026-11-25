@@ -169,8 +169,10 @@ export class ChecksService {
     const workable = `c.status in ('due', 'in_progress', 'returned')`;
     switch (query.view) {
       case 'mine':
+        // Work to do now; scheduled work is under Upcoming (DSH-AC-01:
+        // the dashboard count matches this list).
         where.push(
-          `(${workable} or c.status = 'scheduled')`,
+          workable,
           `(c.assignee_user_id = ${params.add(auth.userId)}
             or c.assignee_team_id = any(${params.add([...auth.teamIds])}::uuid[])
             or c.assignee_discipline_id = any(${params.add([...auth.disciplineIds])}::uuid[]))`,
@@ -188,6 +190,9 @@ export class ChecksService {
       case 'review':
         where.push(`c.status = 'submitted'`);
         break;
+      case 'completed':
+        where.push(`c.status = 'completed'`);
+        break;
       case 'all':
         break;
     }
@@ -198,6 +203,16 @@ export class ChecksService {
     if (query.templateId)
       where.push(`v.template_id = ${params.add(query.templateId)}`);
     if (query.defectId) where.push(`c.defect_id = ${params.add(query.defectId)}`);
+    if (query.dueFrom) where.push(`c.due_on >= ${params.add(query.dueFrom)}::date`);
+    if (query.dueTo) where.push(`c.due_on <= ${params.add(query.dueTo)}::date`);
+    if (query.submittedFrom)
+      where.push(
+        `c.submitted_at >= (${params.add(query.submittedFrom)}::date::timestamp at time zone ${params.add(auth.org.timeZone)})`,
+      );
+    if (query.failed)
+      where.push(`c.submitted_at is not null and jsonb_array_length(c.outcome_reasons) > 0`);
+    if (query.withDefects)
+      where.push(`exists (select 1 from corecheck.defects d where d.check_id = c.id)`);
     if (query.search) {
       const term = params.add(`%${escapeLike(query.search)}%`);
       where.push(

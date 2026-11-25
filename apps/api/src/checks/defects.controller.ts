@@ -28,11 +28,31 @@ import { CurrentAuth, RequirePermissions } from '../auth/decorators.js';
 import { IdParam, ValidBody, ValidQuery } from '../common/validation.js';
 import type { UploadedFile as Upload } from '../plants/documents.service.js';
 import { DefectsService } from './defects.service.js';
+import { ListExportService } from './list-export.service.js';
 
 /** Defect routes; the service checks scope and assignment. */
 @Controller('defects')
 export class DefectsController {
-  constructor(private readonly defects: DefectsService) {}
+  constructor(
+    private readonly defects: DefectsService,
+    private readonly lists: ListExportService,
+  ) {}
+
+  /** The list as shown, with its filters, as CSV (LST-004). */
+  @Get('export')
+  @RequirePermissions('defects.view', 'reports.export')
+  async exportList(
+    @CurrentAuth() auth: CustomerAuth,
+    @ValidQuery(listDefectsQuerySchema) query: z.output<typeof listDefectsQuerySchema>,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const output = await this.lists.defectsCsv(auth, query);
+    res.setHeader('X-Filename', encodeURIComponent(output.filename));
+    return new StreamableFile(output.body, {
+      type: output.contentType,
+      length: output.body.length,
+    });
+  }
 
   @Get()
   @RequirePermissions('defects.view')

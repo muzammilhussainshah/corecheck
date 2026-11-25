@@ -30,6 +30,7 @@ describe('Check, schedule and Defect isolation (TEN-002)', () => {
   let schedule: CheckSchedule;
   let check: CheckDetail;
   let defect: DefectDetail;
+  let importId: string;
 
   beforeAll(async () => {
     t = await createTestApp();
@@ -112,6 +113,20 @@ describe('Check, schedule and Defect isolation (TEN-002)', () => {
         .attach('file', PNG, { filename: 'fix.png' })
         .expect(201)
     ).body as DefectDetail;
+    importId = (
+      (
+        await b.admin
+          .post('/template-imports')
+          .attach(
+            'file',
+            Buffer.from(
+              ['Template Name,Purpose,Question,Answer Type', 'B import,Operational,Q,Text'].join('\n'),
+            ),
+            { filename: 't.csv', contentType: 'text/csv' },
+          )
+          .expect(201)
+      ).body as { id: string }
+    ).id;
   });
   afterAll(() => t.close());
 
@@ -123,12 +138,15 @@ describe('Check, schedule and Defect isolation (TEN-002)', () => {
       `/checks/${check.id}/evidence/${check.evidence[0]!.id}/file`,
       `/defects/${defect.id}`,
       `/defects/${defect.id}/evidence/${defect.evidence[0]!.id}/file`,
+      `/template-imports/${importId}`,
+      `/template-imports/${importId}/report`,
     ])
       await a.admin.get(path).expect(404);
     await a.admin
       .post(`/checks/${check.id}/review`, { decision: 'approve' })
       .expect(404);
     await a.admin.post(`/schedules/${schedule.id}/end`).expect(404);
+    await a.admin.post(`/template-imports/${importId}/commit`).expect(404);
     await a.admin
       .post(`/defects/${defect.id}/reopen`, { reason: 'probe' })
       .expect(404);
@@ -144,6 +162,13 @@ describe('Check, schedule and Defect isolation (TEN-002)', () => {
       total: 0,
     });
     expect((await a.admin.get('/schedules').expect(200)).body).toEqual([]);
+    expect((await a.admin.get('/template-imports').expect(200)).body).toEqual([]);
+    const dash = (await a.admin.get('/dashboard').expect(200)).body as {
+      recentlyCompleted: unknown[];
+      statusChanges: unknown[];
+    };
+    expect(dash.recentlyCompleted).toEqual([]);
+    expect(dash.statusChanges).toEqual([]);
     expect((await a.admin.get('/notifications').expect(200)).body).toMatchObject({
       unread: 0,
     });
@@ -164,6 +189,8 @@ describe('Check, schedule and Defect isolation (TEN-002)', () => {
       'defects',
       'defect_evidence',
       'notifications',
+      'template_imports',
+      'template_import_rows',
     ];
     await t.dataSource.transaction(async (manager) => {
       await enterTenantRole(

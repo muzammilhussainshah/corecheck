@@ -468,6 +468,17 @@ describe('Templates, schedules, checks and Defects (FRD 10–13)', () => {
       expect(after!.openCheck).toMatchObject({ dueOn: next });
       expect(after!.lastCompletedAt).not.toBeNull();
       expect((await getCheck(org.admin, first.id)).status).toBe('completed');
+      // Completed checks have their own list (NAV-002), and the "My work"
+      // count matches the "My work" list (DSH-AC-01).
+      const completed = (await operative.client.get('/checks?view=completed&pageSize=100').expect(200))
+        .body as Paginated<CheckSummary>;
+      expect(completed.items.map((c) => c.id)).toContain(first.id);
+      const mine = (await operative.client.get('/checks?view=mine&pageSize=100').expect(200))
+        .body as Paginated<CheckSummary>;
+      const summary = (await operative.client.get('/work/summary').expect(200)).body as {
+        checks: { mine: number };
+      };
+      expect(mine.total).toBe(summary.checks.mine);
     });
 
     it('pauses while the plant is Offline, keeps history, and resumes from the return-to-service date (SCH-010, SCH-AC-02, SCH-AC-03)', async () => {
@@ -583,6 +594,68 @@ describe('Templates, schedules, checks and Defects (FRD 10–13)', () => {
       expect(await count(operative.client)).toBe(1);
       expect(await count(supervisor.client)).toBe(1);
       expect(await count(outsider.client)).toBe(0);
+    });
+
+    it('counts dashboard figures exactly as the lists they open (DSH-AC-01..03)', async () => {
+      const templateId = await template('operational', dailyQuestions());
+      const item = await plant();
+      const dueToday = await assignCheck(item.id, templateId, { assigneeUserId: operative.id }, { dueOn: today });
+      await assignCheck(item.id, templateId, { assigneeUserId: operative.id }, { dueOn: addDaysTo(today, 2) });
+      await answer(operative.client, dueToday.id, [
+        { questionId: 'tyres', value: 'fail' },
+        { questionId: 'tyre-depth', value: 1 },
+        { questionId: 'fuel', value: 'Empty' },
+      ]).expect(200);
+      await operative.client.post(`/checks/${dueToday.id}/submit`).expect(200);
+      const dash = (await supervisor.client.get('/dashboard').expect(200)).body as {
+        period: { today: string; weekEnd: string; monthEnd: string; recentFrom: string };
+        checks: Record<string, number>;
+        recentlyCompleted: Array<{ id: string; failures: number; completedBy: string }>;
+        plant: Record<string, number>;
+      };
+      expect(dash.period.today).toBe(today);
+      const total = async (query: string) =>
+        ((await supervisor.client.get(`/checks?${query}`).expect(200)).body as Paginated<CheckSummary>).total;
+      const { period } = dash;
+      expect(dash.checks.dueToday).toBe(await total(`view=due&dueFrom=${today}&dueTo=${today}`));
+      expect(dash.checks.dueThisWeek).toBe(await total(`view=due&dueFrom=${today}&dueTo=${period.weekEnd}`));
+      expect(dash.checks.dueThisMonth).toBe(await total(`view=due&dueFrom=${today}&dueTo=${period.monthEnd}`));
+      expect(dash.checks.overdue).toBe(await total('view=overdue'));
+      expect(dash.checks.awaitingReview).toBe(await total('view=review'));
+      expect(dash.checks.failedRecently).toBe(await total(`view=all&failed=true&submittedFrom=${period.recentFrom}`));
+      expect(dash.checks.failedRecently).toBeGreaterThan(0);
+      expect(dash.recentlyCompleted.find((c) => c.id === dueToday.id)).toMatchObject({
+        failures: 2,
+        completedBy: 'Olga operative',
+      });
+      // Nobody outside the site sees these plant or checks.
+      const outside = (await outsider.client.get('/dashboard').expect(200)).body as {
+        recentlyCompleted: unknown[];
+      };
+      expect(outside.recentlyCompleted.find((c) => (c as { id: string }).id === dueToday.id)).toBeUndefined();
+    });
+
+    it('exports the Checks and Defects lists with the same filters and scope (LST-004)', async () => {
+      const templateId = await template('operational', dailyQuestions());
+      const item = await plant();
+      const check = await assignCheck(item.id, templateId);
+      const csvOf = async (client: ApiClient, path: string) =>
+        (await client.get(path).expect(200)).text;
+      const mine = await csvOf(supervisor.client, `/checks/export?view=all&plantId=${item.id}`);
+      const lines = mine.trim().split(/\r?\n/);
+      expect(lines[0]).toContain('Check,Template,Purpose');
+      expect(mine).toContain(check.ref);
+      expect(lines).toHaveLength(2);
+      await supervisor.client.get('/defects/export?status=active').expect(200);
+      // Operatives cannot export lists; nobody sees other sites in an export.
+      await operative.client.get('/checks/export').expect(403);
+      const outsiderManager = await createActiveUser(t, org.admin, {
+        firstName: 'Far',
+        lastName: 'Manager',
+        roleId: org.roleIds.manager,
+        siteIds: [otherSiteId],
+      });
+      expect(await csvOf(outsiderManager.client, '/checks/export?view=all')).not.toContain(check.ref);
     });
 
     it('pauses and resumes a rule, and creates an approval step only when the schedule requires it (SCH-001, SCH-011)', async () => {
@@ -996,6 +1069,10 @@ describe('Templates, schedules, checks and Defects (FRD 10–13)', () => {
       const closed = (await technician.client.post(`${url}/close`, { note: 'Fixed' }).expect(200))
         .body as DefectDetail;
       expect(closed.status).toBe('closed');
+      // Closure is announced to whoever raised it (NTF-005).
+      const told = ((await operative.client.get('/notifications').expect(200)).body as NotificationList)
+        .items.filter((n) => n.kind === 'defect_closed' && n.link === url);
+      expect(told).toHaveLength(1);
       // Closing does not return plant to service (DEF-AC-04).
       expect((await plantOf(item.id)).status).toBe('restricted');
       // Nor can a Technician (DFW-012).

@@ -438,6 +438,32 @@ export class DefectsService {
       { note },
       true,
     );
+    // Defect closure is a notification trigger (NTF-005): those who raised
+    // and worked it, and those who return plant to service at its site.
+    await this.notifications.notify(
+      [
+        defect.raisedBy,
+        ...(defect.assigneeUserId ? [defect.assigneeUserId] : []),
+        ...(plant.status === 'restricted'
+          ? await this.people.withPermission(
+              'plant_status.return_to_service',
+              plant.siteId,
+            )
+          : []),
+      ],
+      {
+        kind: 'defect_closed',
+        title: `${defectRef(defect.refNo)} closed on ${plant.assetId}`,
+        body:
+          plant.status === 'restricted'
+            ? `${defect.questionText}. The plant is still Restricted/Offline until it is returned to service.`
+            : defect.questionText,
+        link: `/defects/${id}`,
+        entityType: 'defect',
+        entityId: id,
+      },
+      [auth.userId],
+    );
     return this.get(auth, id);
   }
 

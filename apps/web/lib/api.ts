@@ -37,8 +37,11 @@ import {
   type ReviewCheckInput,
   type SaveCheckAnswersInput,
   type TemplatePurpose,
+  type TemplateImportDetail,
+  type TemplateImportSummary,
   type UpdateScheduleInput,
   type WorkSummary,
+  type DashboardSummary,
   type CheckTemplateDetail,
   type CorrectMeterReadingInput,
   type CreateMeterReadingInput,
@@ -159,6 +162,7 @@ export const api = createApi({
     'Defect',
     'Notification',
     'Work',
+    'TemplateImport',
   ],
   endpoints: (build) => ({
     // ------------------------------------------------------------ session
@@ -659,6 +663,35 @@ export const api = createApi({
       invalidatesTags: ['Template'],
     }),
 
+    // ---------------------------------------------- check template import
+    templateImports: build.query<TemplateImportSummary[], void>({
+      query: () => ({ url: '/template-imports' }),
+      providesTags: ['TemplateImport'],
+    }),
+    templateImport: build.query<TemplateImportDetail, string>({
+      query: (id) => ({ url: `/template-imports/${id}` }),
+      providesTags: ['TemplateImport'],
+    }),
+    uploadTemplateImport: build.mutation<TemplateImportDetail, FormData>({
+      query: (body) => ({ url: '/template-imports', method: 'POST', body }),
+      invalidatesTags: ['TemplateImport'],
+    }),
+    updateTemplateImportRow: build.mutation<
+      TemplateImportDetail,
+      { importId: string; rowId: string; data: Record<string, string> }
+    >({
+      query: ({ importId, rowId, data }) => ({
+        url: `/template-imports/${importId}/rows/${rowId}`,
+        method: 'PATCH',
+        body: { data },
+      }),
+      invalidatesTags: ['TemplateImport'],
+    }),
+    commitTemplateImport: build.mutation<TemplateImportDetail, string>({
+      query: (id) => ({ url: `/template-imports/${id}/commit`, method: 'POST' }),
+      invalidatesTags: ['TemplateImport', 'Template'],
+    }),
+
     // ---------------------------------------------------------- schedules
     schedules: build.query<
       CheckSchedule[],
@@ -702,6 +735,10 @@ export const api = createApi({
     }),
 
     // -------------------------------------------------------------- checks
+    dashboard: build.query<DashboardSummary, void>({
+      query: () => ({ url: '/dashboard' }),
+      providesTags: ['Work', 'Check', 'Defect', 'Plant', 'Document'],
+    }),
     workSummary: build.query<WorkSummary, void>({
       query: () => ({ url: '/work/summary' }),
       providesTags: ['Work'],
@@ -1069,11 +1106,17 @@ export const {
   useSaveTemplateDraftMutation,
   useTemplateActionMutation,
   useDuplicateTemplateMutation,
+  useTemplateImportsQuery,
+  useTemplateImportQuery,
+  useUploadTemplateImportMutation,
+  useUpdateTemplateImportRowMutation,
+  useCommitTemplateImportMutation,
   useSchedulesQuery,
   useCreateScheduleMutation,
   useUpdateScheduleMutation,
   useScheduleActionMutation,
   useWorkSummaryQuery,
+  useDashboardQuery,
   useChecksQuery,
   useCheckQuery,
   useCreateCheckMutation,
