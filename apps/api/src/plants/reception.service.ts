@@ -4,17 +4,14 @@ import { In } from 'typeorm';
 import type { z } from 'zod';
 import {
   type AnswerValue,
-  answerFails,
   type AuditAction,
   ERROR_CODES,
-  evidenceRequired,
   type FieldError,
   type PlantReception,
   type ReceptionAnswer,
   type ReceptionCheck,
   type ReceptionEvidence,
   type saveReceptionAnswersSchema,
-  type TemplateQuestion,
 } from '@corecheck/shared';
 import {
   type AuditActor,
@@ -23,6 +20,7 @@ import {
 } from '../audit/audit.service.js';
 import { type CustomerAuth, fullName } from '../auth/auth-context.js';
 import { Clock } from '../common/clock.js';
+import { evaluateAnswers, valueProblem } from '../common/answers.js';
 import { checkDocumentFile } from '../common/document-file.js';
 import {
   conflict,
@@ -46,6 +44,7 @@ import {
 import { TenantDb } from '../database/db-context.js';
 import { TemplatesService } from '../templates/templates.service.js';
 import { ComplianceService } from './compliance.service.js';
+import { DefectRaiser } from './defect-raiser.service.js';
 import type { UploadedFile } from './documents.service.js';
 import { MetersService } from './meters.service.js';
 import { PlantsService } from './plants.service.js';
@@ -54,32 +53,6 @@ type AnswersInput = z.output<typeof saveReceptionAnswersSchema>['answers'];
 
 const ACTIVE = ['open', 'returned', 'submitted'] as const;
 const EDITABLE = ['open', 'returned'];
-
-/** The value an answer of this type may hold; null clears it. */
-const valueProblem = (
-  question: TemplateQuestion,
-  value: AnswerValue,
-): string | null => {
-  if (value === null || value === '') return null;
-  switch (question.type) {
-    case 'pass_fail':
-      return value === 'pass' || value === 'fail'
-        ? null
-        : 'Answer pass or fail.';
-    case 'yes_no':
-      return value === 'yes' || value === 'no' ? null : 'Answer yes or no.';
-    case 'number':
-      return typeof value === 'number' ? null : 'Enter a number.';
-    case 'meter':
-      return typeof value === 'number' && value >= 0
-        ? null
-        : 'Enter the meter reading as a number of 0 or more.';
-    case 'text':
-      return typeof value === 'string' ? null : 'Enter text.';
-    case 'photo':
-      return 'Add photos for this question instead of an answer.';
-  }
-};
 
 /**
  * Plant reception (FRD 8). A Supervisor, Manager or Admin assigns a
@@ -106,6 +79,7 @@ export class ReceptionService {
     private readonly templates: TemplatesService,
     private readonly compliance: ComplianceService,
     private readonly meters: MetersService,
+    private readonly defects: DefectRaiser,
     private readonly storage: StorageService,
     private readonly audit: AuditService,
     private readonly clock: Clock,
@@ -344,42 +318,18 @@ export class ReceptionService {
     );
     const photos = await this.activeEvidence(checkId);
 
-    // Every gap at once, against its question (VAL-002).
-    const errors: FieldError[] = [];
-    const failed: TemplateQuestion[] = [];
-    for (const question of questions) {
-      const answer = answers.get(question.id);
-      const value = answer?.value ?? null;
-      const photoCount = photos.filter(
-        (p) => p.questionId === question.id,
-      ).length;
-      const field = `answers.${question.id}`;
-      const answered =
-        question.type === 'photo' ? photoCount > 0 : value !== null;
-      if (question.mandatory && !answered) {
-        errors.push({
-          field,
-          message:
-            question.type === 'photo'
-              ? `Add a photo: ${question.text}`
-              : `Answer: ${question.text}`,
-        });
-        continue;
-      }
-      const fails = answerFails(question, value);
-      if (fails) failed.push(question);
-      if (evidenceRequired(question.requireComment, fails) && !answer?.comment)
-        errors.push({ field, message: `Add a comment: ${question.text}` });
-      if (
-        question.type !== 'photo' &&
-        evidenceRequired(question.requirePhoto, fails) &&
-        photoCount === 0
-      )
-        errors.push({ field, message: `Add a photo: ${question.text}` });
-    }
+    // Every gap at once, against its question (VAL-002). Follow-ups whose
+    // condition is not met are not asked (TMP-009).
+    const evaluation = evaluateAnswers(
+      questions,
+      answers,
+      (questionId) => photos.filter((p) => p.questionId === questionId).length,
+    );
+    const errors: FieldError[] = [...evaluation.errors];
+    const failed = evaluation.failed;
     // A meter answer below the plant's latest reading would make its history
     // go down without a reason (Milestone 2 bug 7): say so on the question.
-    for (const question of questions) {
+    for (const question of evaluation.asked) {
       const answer = answers.get(question.id);
       if (
         question.type !== 'meter' ||
@@ -466,13 +416,23 @@ export class ReceptionService {
       { checkId, outcome, reasons },
     );
 
+    // A failed answer with a defect trigger raises a Defect (DEF-002): the
+    // answer is recorded once the reception is submitted.
+    await this.defects.raise(
+      userActor(auth),
+      plant,
+      { kind: 'reception', id: checkId },
+      failed,
+      answers,
+    );
+
     // Finished receptions put their readings on the plant (MTR-003).
     if (outcome !== 'awaiting_approval')
       await this.meters.recordFromReception(
         userActor(auth),
         plant,
         checkId,
-        questions,
+        evaluation.asked,
         [...answers.values()],
       );
 

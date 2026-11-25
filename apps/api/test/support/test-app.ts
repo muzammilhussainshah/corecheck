@@ -67,6 +67,7 @@ export const createTestApp = async ({
     STORAGE_DIR: await mkdtemp(join(tmpdir(), 'corecheck-test-storage-')),
     // Tests run the document expiry check themselves when they need it.
     COMPLIANCE_SWEEP_MINUTES: '0',
+    SCHEDULE_SWEEP_MINUTES: '0',
     ...TEST_SECRETS,
   });
 

@@ -21,6 +21,24 @@ import {
   type Paginated,
   type PocCheck,
   type PocCreateCheckInput,
+  type AssignCheckInput,
+  type AssignDefectInput,
+  type CheckDetail,
+  type CheckSchedule,
+  type CheckSummary,
+  type CreateCheckInput,
+  type CreateScheduleInput,
+  type DefectDetail,
+  type DefectSummary,
+  type ListChecksQuery,
+  type ListDefectsQuery,
+  type NotificationList,
+  type RecordDefectWorkInput,
+  type ReviewCheckInput,
+  type SaveCheckAnswersInput,
+  type TemplatePurpose,
+  type UpdateScheduleInput,
+  type WorkSummary,
   type CheckTemplateDetail,
   type CorrectMeterReadingInput,
   type CreateMeterReadingInput,
@@ -136,6 +154,11 @@ export const api = createApi({
     'Template',
     'Reception',
     'Meter',
+    'Schedule',
+    'Check',
+    'Defect',
+    'Notification',
+    'Work',
   ],
   endpoints: (build) => ({
     // ------------------------------------------------------------ session
@@ -459,7 +482,7 @@ export const api = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['Plant'],
+      invalidatesTags: ['Plant', 'Schedule', 'Check', 'Work', 'Audit'],
     }),
     returnPlantToService: build.mutation<
       PlantDetail,
@@ -470,7 +493,7 @@ export const api = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['Plant'],
+      invalidatesTags: ['Plant', 'Schedule', 'Check', 'Work', 'Audit'],
     }),
     setPlantArchived: build.mutation<
       PlantDetail,
@@ -480,7 +503,7 @@ export const api = createApi({
         url: `/plants/${id}/${archived ? 'archive' : 'restore'}`,
         method: 'POST',
       }),
-      invalidatesTags: ['Plant'],
+      invalidatesTags: ['Plant', 'Schedule', 'Check', 'Work', 'Audit'],
     }),
 
     // ---------------------------------------------------------- documents
@@ -579,7 +602,7 @@ export const api = createApi({
     // ---------------------------------------------------------- templates
     templates: build.query<
       CheckTemplateSummary[],
-      { purpose?: 'reception'; includeArchived?: boolean } | void
+      { purpose?: TemplatePurpose; includeArchived?: boolean } | void
     >({
       query: (args) => ({
         url: '/templates',
@@ -611,13 +634,272 @@ export const api = createApi({
     }),
     templateAction: build.mutation<
       CheckTemplateDetail,
-      { id: string; action: 'publish' | 'archive' | 'restore' }
+      {
+        id: string;
+        action: 'publish' | 'archive' | 'restore';
+        applyToUnstarted?: boolean;
+      }
     >({
-      query: ({ id, action }) => ({
+      query: ({ id, action, applyToUnstarted }) => ({
         url: `/templates/${id}/${action}`,
         method: 'POST',
+        body: action === 'publish' ? { applyToUnstarted } : undefined,
+      }),
+      invalidatesTags: ['Template', 'Check'],
+    }),
+    duplicateTemplate: build.mutation<
+      CheckTemplateDetail,
+      { id: string; name: string }
+    >({
+      query: ({ id, name }) => ({
+        url: `/templates/${id}/duplicate`,
+        method: 'POST',
+        body: { name },
       }),
       invalidatesTags: ['Template'],
+    }),
+
+    // ---------------------------------------------------------- schedules
+    schedules: build.query<
+      CheckSchedule[],
+      { plantId?: string; templateId?: string; includeArchived?: boolean } | void
+    >({
+      query: (args) => ({
+        url: '/schedules',
+        params: cleanParams({
+          plantId: args?.plantId,
+          templateId: args?.templateId,
+          includeArchived: args?.includeArchived ? 'true' : undefined,
+        }),
+      }),
+      providesTags: ['Schedule'],
+    }),
+    createSchedule: build.mutation<CheckSchedule[], CreateScheduleInput>({
+      query: (body) => ({ url: '/schedules', method: 'POST', body }),
+      invalidatesTags: ['Schedule', 'Check', 'Work'],
+    }),
+    updateSchedule: build.mutation<
+      CheckSchedule,
+      { id: string } & UpdateScheduleInput
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/schedules/${id}`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Schedule', 'Check', 'Work'],
+    }),
+    scheduleAction: build.mutation<
+      CheckSchedule,
+      { id: string; action: 'pause' | 'resume' | 'end'; reason?: string }
+    >({
+      query: ({ id, action, reason }) => ({
+        url: `/schedules/${id}/${action}`,
+        method: 'POST',
+        body: action === 'pause' ? { reason } : {},
+      }),
+      invalidatesTags: ['Schedule', 'Check', 'Work'],
+    }),
+
+    // -------------------------------------------------------------- checks
+    workSummary: build.query<WorkSummary, void>({
+      query: () => ({ url: '/work/summary' }),
+      providesTags: ['Work'],
+    }),
+    checks: build.query<Paginated<CheckSummary>, ListChecksQuery>({
+      query: (params) => ({
+        url: '/checks',
+        params: cleanParams({ ...params }),
+      }),
+      providesTags: ['Check'],
+    }),
+    check: build.query<CheckDetail, string>({
+      query: (id) => ({ url: `/checks/${id}` }),
+      providesTags: ['Check'],
+    }),
+    createCheck: build.mutation<CheckDetail, CreateCheckInput>({
+      query: (body) => ({ url: '/checks', method: 'POST', body }),
+      invalidatesTags: ['Check', 'Work'],
+    }),
+    saveCheckAnswers: build.mutation<
+      CheckDetail,
+      { id: string } & SaveCheckAnswersInput
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/checks/${id}/answers`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Check', 'Work', 'Defect', 'Plant'],
+    }),
+    addCheckEvidence: build.mutation<
+      CheckDetail,
+      { id: string; questionId: string; form: FormData }
+    >({
+      query: ({ id, questionId, form }) => ({
+        url: `/checks/${id}/questions/${encodeURIComponent(questionId)}/evidence`,
+        method: 'POST',
+        body: form,
+      }),
+      invalidatesTags: ['Check'],
+    }),
+    removeCheckEvidence: build.mutation<
+      CheckDetail,
+      { id: string; evidenceId: string }
+    >({
+      query: ({ id, evidenceId }) => ({
+        url: `/checks/${id}/evidence/${evidenceId}/remove`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Check'],
+    }),
+    submitCheck: build.mutation<CheckDetail, string>({
+      query: (id) => ({ url: `/checks/${id}/submit`, method: 'POST' }),
+      // Submission can raise Defects, restrict plant and record meters.
+      invalidatesTags: [
+        'Check',
+        'Work',
+        'Defect',
+        'Plant',
+        'Meter',
+        'Schedule',
+        'Audit',
+        'Notification',
+      ],
+    }),
+    reviewCheck: build.mutation<
+      CheckDetail,
+      { id: string } & ReviewCheckInput
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/checks/${id}/review`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Check', 'Work', 'Defect', 'Plant', 'Meter', 'Audit'],
+    }),
+    checkReasonAction: build.mutation<
+      CheckDetail,
+      { id: string; action: 'reopen' | 'cancel'; reason: string }
+    >({
+      query: ({ id, action, reason }) => ({
+        url: `/checks/${id}/${action}`,
+        method: 'POST',
+        body: { reason },
+      }),
+      invalidatesTags: ['Check', 'Work', 'Schedule', 'Defect'],
+    }),
+    assignCheck: build.mutation<
+      CheckDetail,
+      { id: string } & AssignCheckInput
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/checks/${id}/assign`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Check', 'Work'],
+    }),
+    rescheduleCheck: build.mutation<
+      CheckDetail,
+      { id: string; dueOn: string; reason?: string }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/checks/${id}/reschedule`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Check', 'Work', 'Schedule'],
+    }),
+
+    // ------------------------------------------------------------- defects
+    defects: build.query<
+      Paginated<DefectSummary>,
+      Omit<ListDefectsQuery, 'assignedToMe'> & { assignedToMe?: boolean }
+    >({
+      query: (params) => ({
+        url: '/defects',
+        params: cleanParams({
+          ...params,
+          assignedToMe: params.assignedToMe ? 'true' : undefined,
+        }),
+      }),
+      providesTags: ['Defect'],
+    }),
+    defect: build.query<DefectDetail, string>({
+      query: (id) => ({ url: `/defects/${id}` }),
+      providesTags: ['Defect'],
+    }),
+    assignDefect: build.mutation<
+      DefectDetail,
+      { id: string } & AssignDefectInput
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/defects/${id}/assign`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Defect', 'Work'],
+    }),
+    defectAction: build.mutation<
+      DefectDetail,
+      {
+        id: string;
+        action: 'start' | 'work' | 'verification' | 'close' | 'reopen';
+        body?: object;
+      }
+    >({
+      query: ({ id, action, body }) => ({
+        url: `/defects/${id}/${action}`,
+        method: 'POST',
+        body: body ?? {},
+      }),
+      invalidatesTags: ['Defect', 'Check', 'Work', 'Plant', 'Audit'],
+    }),
+    recordDefectWork: build.mutation<
+      DefectDetail,
+      { id: string } & RecordDefectWorkInput
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/defects/${id}/work`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Defect'],
+    }),
+    addDefectEvidence: build.mutation<
+      DefectDetail,
+      { id: string; form: FormData }
+    >({
+      query: ({ id, form }) => ({
+        url: `/defects/${id}/evidence`,
+        method: 'POST',
+        body: form,
+      }),
+      invalidatesTags: ['Defect'],
+    }),
+    removeDefectEvidence: build.mutation<
+      DefectDetail,
+      { id: string; evidenceId: string }
+    >({
+      query: ({ id, evidenceId }) => ({
+        url: `/defects/${id}/evidence/${evidenceId}/remove`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Defect'],
+    }),
+
+    // ------------------------------------------------------- notifications
+    notifications: build.query<NotificationList, void>({
+      query: () => ({ url: '/notifications' }),
+      providesTags: ['Notification'],
+    }),
+    markNotificationsRead: build.mutation<
+      NotificationList,
+      { ids: string[] | 'all' }
+    >({
+      query: (body) => ({ url: '/notifications/read', method: 'POST', body }),
+      invalidatesTags: ['Notification'],
     }),
 
     // ---------------------------------------------------------- reception
@@ -682,7 +964,7 @@ export const api = createApi({
         method: 'POST',
         body: action === 'return' ? { comment } : undefined,
       }),
-      invalidatesTags: ['Reception', 'Plant', 'Audit', 'Meter'],
+      invalidatesTags: ['Reception', 'Plant', 'Audit', 'Meter', 'Defect'],
     }),
 
     // ------------------------------------------------------- meter readings
@@ -782,9 +1064,36 @@ export const {
   useDocumentActionMutation,
   useTemplatesQuery,
   useTemplateQuery,
+  useLazyTemplateQuery,
   useCreateTemplateMutation,
   useSaveTemplateDraftMutation,
   useTemplateActionMutation,
+  useDuplicateTemplateMutation,
+  useSchedulesQuery,
+  useCreateScheduleMutation,
+  useUpdateScheduleMutation,
+  useScheduleActionMutation,
+  useWorkSummaryQuery,
+  useChecksQuery,
+  useCheckQuery,
+  useCreateCheckMutation,
+  useSaveCheckAnswersMutation,
+  useAddCheckEvidenceMutation,
+  useRemoveCheckEvidenceMutation,
+  useSubmitCheckMutation,
+  useReviewCheckMutation,
+  useCheckReasonActionMutation,
+  useAssignCheckMutation,
+  useRescheduleCheckMutation,
+  useDefectsQuery,
+  useDefectQuery,
+  useAssignDefectMutation,
+  useDefectActionMutation,
+  useRecordDefectWorkMutation,
+  useAddDefectEvidenceMutation,
+  useRemoveDefectEvidenceMutation,
+  useNotificationsQuery,
+  useMarkNotificationsReadMutation,
   usePlantReceptionQuery,
   useAssignReceptionMutation,
   useSaveReceptionAnswersMutation,

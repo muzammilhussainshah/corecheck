@@ -65,6 +65,8 @@ import { ComplianceBadge } from '../../../../components/plant/DocumentBadges';
 import { DocumentsTab } from '../../../../components/plant/DocumentsTab';
 import { MetersTab } from '../../../../components/plant/MetersTab';
 import { PlantStatusBadge } from '../../../../components/plant/PlantStatusBadge';
+import { PlantChecksTab } from '../../../../components/plant/PlantChecksTab';
+import { PlantDefectsTab } from '../../../../components/plant/PlantDefectsTab';
 import { ReceptionTab } from '../../../../components/plant/ReceptionTab';
 import {
   usePlantHistoryQuery,
@@ -177,6 +179,10 @@ function ReturnModal({
   const [blockers, setBlockers] = useState<string[] | null>(null);
   // Required plant information that is missing (PLT-008): no override.
   const [missingDetails, setMissingDetails] = useState<string[] | null>(null);
+  // Open Defects that keep it Offline (DFW-009): an authorised override.
+  const [defects, setDefects] = useState<PlantDetail['blockingDefects'] | null>(
+    null,
+  );
   // Any other refusal, shown here so the action never fails silently.
   const [failure, setFailure] = useState<ApiError | null>(null);
   // Refusals that trying again cannot change.
@@ -184,11 +190,13 @@ function ReturnModal({
     !!missingDetails ||
     failure?.code === ERROR_CODES.RECEPTION_APPROVAL_REQUIRED;
   const overriding = !!blockers && !blocked && can('plant_status.override');
+  const overridingDefects =
+    !!defects && !blocked && plant.capabilities.overrideDefects;
   const form = useForm({
     initialValues: { note: '', reviewOn: '' },
     validate: {
       note: (value) =>
-        overriding && !value.trim()
+        (overriding || overridingDefects) && !value.trim()
           ? 'Give the reason for the override.'
           : null,
       reviewOn: (value) =>
@@ -197,6 +205,7 @@ function ReturnModal({
   });
   const close = () => {
     setBlockers(null);
+    setDefects(null);
     setMissingDetails(null);
     setFailure(null);
     form.reset();
@@ -208,9 +217,14 @@ function ReturnModal({
       id: plant.id,
       note: values.note,
       ...(overriding && { override: true, reviewOn: values.reviewOn }),
+      ...(overridingDefects && { overrideDefects: true }),
     });
     if (result.error) {
       const error = result.error as ApiError;
+      if (error.code === ERROR_CODES.DEFECTS_OPEN)
+        return setDefects(
+          (error.details?.defects as PlantDetail['blockingDefects']) ?? [],
+        );
       if (error.code === ERROR_CODES.PLANT_DETAILS_MISSING)
         return setMissingDetails(
           (error.details?.missingDetails as string[]) ?? [],
@@ -226,6 +240,27 @@ function ReturnModal({
     <Modal opened={opened} onClose={close} title="Return to service">
       <form onSubmit={submit} noValidate>
         <Stack>
+          {defects && (
+            <Alert
+              color="red"
+              icon={<IconAlertTriangle size={18} />}
+              title="Open Defects keep this plant Restricted/Offline"
+            >
+              {defects.map((defect) => (
+                <Text size="sm" key={defect.id}>
+                  <Anchor component={Link} href={`/defects/${defect.id}`}>
+                    {defect.ref}
+                  </Anchor>{' '}
+                  {defect.questionText}
+                </Text>
+              ))}
+              <Text size="sm" mt={4}>
+                {overridingDefects
+                  ? 'You can override this with a reason. The Defects stay open and the override is kept in the audit.'
+                  : 'Close them first, or ask a Manager or Admin to override.'}
+              </Text>
+            </Alert>
+          )}
           {failure ? (
             <Alert
               color="red"
@@ -267,7 +302,7 @@ function ReturnModal({
                   : 'Upload or verify them first, or ask a Manager or Admin to override.'}
               </Text>
             </Alert>
-          ) : (
+          ) : defects ? null : (
             <Text size="sm" c="dimmed">
               {plant.approvedAt
                 ? 'The plant goes back Online and can be used again.'
@@ -276,11 +311,19 @@ function ReturnModal({
           )}
           {!blocked && (
             <Textarea
-              label={overriding ? 'Reason for the override' : 'Note'}
-              required={overriding}
+              label={
+                overriding || overridingDefects
+                  ? 'Reason for the override'
+                  : 'Note'
+              }
+              required={overriding || overridingDefects}
               autosize
               minRows={2}
-              placeholder={overriding ? undefined : 'Optional: what was done'}
+              placeholder={
+                overriding || overridingDefects
+                  ? undefined
+                  : 'Optional: what was done'
+              }
               {...form.getInputProps('note')}
             />
           )}
@@ -301,15 +344,19 @@ function ReturnModal({
             <Button variant="default" onClick={close}>
               Cancel
             </Button>
-            {!blocked && (!blockers || overriding) && (
-              <Button
-                type="submit"
-                color={overriding ? 'orange' : undefined}
-                loading={isLoading}
-              >
-                {overriding ? 'Override and return' : 'Return to service'}
-              </Button>
-            )}
+            {!blocked &&
+              (!blockers || overriding) &&
+              (!defects || overridingDefects) && (
+                <Button
+                  type="submit"
+                  color={overriding || overridingDefects ? 'orange' : undefined}
+                  loading={isLoading}
+                >
+                  {overriding || overridingDefects
+                    ? 'Override and return'
+                    : 'Return to service'}
+                </Button>
+              )}
           </Group>
         </Stack>
       </form>
@@ -385,12 +432,6 @@ function HistoryTab({ plantId }: { plantId: string }) {
     />
   );
 }
-
-const ComingTab = ({ title, message }: { title: string; message: string }) => (
-  <Card withBorder>
-    <EmptyState title={title} message={message} />
-  </Card>
-);
 
 const TABS = [
   'overview',
@@ -545,6 +586,23 @@ export default function PlantProfilePage() {
         }
       />
 
+      {plant.blockingDefects.length > 0 && !archived && tab !== 'defects' && (
+        <Alert
+          mb="md"
+          color="red"
+          icon={<IconAlertTriangle size={18} />}
+          title="Open Defects keep this plant Restricted/Offline"
+        >
+          {plant.blockingDefects.map((defect) => (
+            <Text size="sm" key={defect.id}>
+              <Anchor component={Link} href={`/defects/${defect.id}`}>
+                {defect.ref}
+              </Anchor>{' '}
+              {defect.questionText}
+            </Text>
+          ))}
+        </Alert>
+      )}
       {plant.heldByReception && !archived && tab !== 'reception' && (
         // Why there is no Return to service: approving the reception, once
         // what it waits for is in order, is the way back (DOC-004, REC-AC-02).
@@ -597,7 +655,9 @@ export default function PlantProfilePage() {
           <Tabs.Tab value="documents">Documents</Tabs.Tab>
           <Tabs.Tab value="meters">Meter readings</Tabs.Tab>
           <Tabs.Tab value="checks">Checks</Tabs.Tab>
-          <Tabs.Tab value="defects">Defects</Tabs.Tab>
+          <Tabs.Tab value="defects">
+            Defects{plant.openDefects ? ` (${plant.openDefects})` : ''}
+          </Tabs.Tab>
           <Tabs.Tab value="history">History</Tabs.Tab>
         </Tabs.List>
 
@@ -727,16 +787,10 @@ export default function PlantProfilePage() {
           <MetersTab plant={plant} />
         </Tabs.Panel>
         <Tabs.Panel value="checks">
-          <ComingTab
-            title="No checks yet"
-            message="Scheduled and completed checks arrive with templates and scheduling."
-          />
+          <PlantChecksTab plant={plant} />
         </Tabs.Panel>
         <Tabs.Panel value="defects">
-          <ComingTab
-            title="No defects"
-            message="Defects raised by failed check answers arrive with the defects workflow."
-          />
+          <PlantDefectsTab plant={plant} />
         </Tabs.Panel>
         <Tabs.Panel value="history">
           <Card

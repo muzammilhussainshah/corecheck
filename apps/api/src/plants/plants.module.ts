@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TemplatesModule } from '../templates/templates.module.js';
 import { ComplianceSweepService } from './compliance-sweep.service.js';
 import { ComplianceService } from './compliance.service.js';
+import { DefectRaiser } from './defect-raiser.service.js';
 import { DocumentsController } from './documents.controller.js';
 import { DocumentsService } from './documents.service.js';
 import { ImportsController } from './imports.controller.js';
@@ -28,11 +29,18 @@ import { ReceptionService } from './reception.service.js';
     PlantOutputService,
     ComplianceService,
     ComplianceSweepService,
+    DefectRaiser,
     DocumentsService,
     ReceptionService,
     MetersService,
     ImportsService,
   ],
-  exports: [PlantsService, ComplianceService, ComplianceSweepService],
+  exports: [
+    PlantsService,
+    ComplianceService,
+    ComplianceSweepService,
+    DefectRaiser,
+    MetersService,
+  ],
 })
 export class PlantsModule {}

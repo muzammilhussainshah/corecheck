@@ -12,15 +12,23 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import {
+  IconAlertTriangle,
   IconArrowRight,
+  IconChecklist,
+  IconClockExclamation,
   IconId,
   IconMapPin,
-  IconRocket,
+  IconUserCheck,
   IconUsers,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { COLORS, Pill, StatCard } from '@corecheck/ui';
-import { useSeatUsageQuery, useSitesQuery } from '../../lib/api';
+import {
+  useSeatUsageQuery,
+  useSitesQuery,
+  useWorkSummaryQuery,
+} from '../../lib/api';
 import { ADMIN_NAV } from '../../lib/navigation';
 import { useSession } from '../../lib/session';
 
@@ -48,6 +56,10 @@ export default function DashboardPage() {
   });
   const { data: sites } = useSitesQuery(undefined, {
     skip: !can('org_structure.view'),
+  });
+  const router = useRouter();
+  const { data: work } = useWorkSummaryQuery(undefined, {
+    skip: !canAny('checks.view', 'defects.view'),
   });
   if (!me) return null;
 
@@ -139,16 +151,51 @@ export default function DashboardPage() {
             )}
           </Card>
         )}
-        <StatCard
-          label="Coming next"
-          value={
-            <Text component="span" fz="sm" fw={500} c={COLORS.body}>
-              Checks and Defects arrive in the next release.
-            </Text>
-          }
-          icon={<IconRocket size={20} />}
-        />
       </SimpleGrid>
+
+      {work && (
+        <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }}>
+          {can('checks.view') && (
+            <>
+              <StatCard
+                label="My checks to do"
+                value={work.checks.mine}
+                icon={<IconChecklist size={20} />}
+                onClick={() => router.push('/checks')}
+              />
+              <StatCard
+                label="Overdue checks"
+                value={work.checks.overdue}
+                icon={<IconClockExclamation size={20} />}
+                onClick={() => router.push('/checks?view=overdue')}
+              />
+              {can('checks.review') && (
+                <StatCard
+                  label="Awaiting review"
+                  value={work.checks.awaitingReview}
+                  icon={<IconUserCheck size={20} />}
+                  onClick={() => router.push('/checks?view=review')}
+                />
+              )}
+            </>
+          )}
+          {can('defects.view') && (
+            <StatCard
+              label="Open Defects"
+              value={
+                <Group gap={8} component="span">
+                  {work.defects.open + work.defects.inProgress}
+                  {work.defects.critical > 0 && (
+                    <Pill tone="danger">{work.defects.critical} critical</Pill>
+                  )}
+                </Group>
+              }
+              icon={<IconAlertTriangle size={20} />}
+              onClick={() => router.push('/defects')}
+            />
+          )}
+        </SimpleGrid>
+      )}
 
       {shortcuts.length > 0 && (
         <Card withBorder shadow="xs">

@@ -22,6 +22,7 @@ import {
   AppLayout,
   COLORS,
   formatDate,
+  formatDateTime,
   type NavEntry,
   NotificationBell,
   PageLoader,
@@ -29,7 +30,12 @@ import {
   QuickActions,
 } from '@corecheck/ui';
 import { useDispatch } from 'react-redux';
-import { api, useLogoutMutation } from '../lib/api';
+import {
+  api,
+  useLogoutMutation,
+  useMarkNotificationsReadMutation,
+  useNotificationsQuery,
+} from '../lib/api';
 import { ADMIN_NAV, isActive, MAIN_NAV, type NavItem } from '../lib/navigation';
 import { useSession } from '../lib/session';
 
@@ -57,6 +63,12 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const { me, can, canAny } = useSession();
   const [logout] = useLogoutMutation();
   const dispatch = useDispatch();
+  // New notifications show within a minute without a reload.
+  const { data: notifications } = useNotificationsQuery(undefined, {
+    skip: !me || me.mustChangePin || !can('notifications.view_own'),
+    pollingInterval: 60_000,
+  });
+  const [markRead] = useMarkNotificationsReadMutation();
 
   useEffect(() => {
     if (me?.mustChangePin) router.replace('/change-pin');
@@ -192,7 +204,16 @@ export function AppFrame({ children }: { children: ReactNode }) {
       headerActions={
         <>
           <QuickActions actions={quickActions} linkComponent={Link} />
-          <NotificationBell />
+          <NotificationBell
+            items={notifications?.items}
+            unread={notifications?.unread}
+            formatTime={(iso) => formatDateTime(iso, me.organisation.timeZone)}
+            onMarkAllRead={() => void markRead({ ids: 'all' })}
+            onOpen={(item) => {
+              if (!item.readAt) void markRead({ ids: [item.id] });
+              if (item.link) router.push(item.link);
+            }}
+          />
         </>
       }
       banner={banner}

@@ -4,7 +4,9 @@ import {
   type CheckTemplateDetail,
   type CheckTemplateSummary,
   createTemplateSchema,
+  duplicateTemplateSchema,
   listTemplatesQuerySchema,
+  publishTemplateSchema,
   saveTemplateDraftSchema,
 } from '@corecheck/shared';
 import type { CustomerAuth } from '../auth/auth-context.js';
@@ -58,8 +60,20 @@ export class TemplatesController {
   publish(
     @CurrentAuth() auth: CustomerAuth,
     @IdParam('Template') id: string,
+    @ValidBody(publishTemplateSchema)
+    body: z.output<typeof publishTemplateSchema>,
   ): Promise<CheckTemplateDetail> {
-    return this.templates.publish(auth, id);
+    return this.templates.publish(auth, id, body.applyToUnstarted);
+  }
+
+  @Post(':id/duplicate')
+  duplicate(
+    @CurrentAuth() auth: CustomerAuth,
+    @IdParam('Template') id: string,
+    @ValidBody(duplicateTemplateSchema)
+    body: z.output<typeof duplicateTemplateSchema>,
+  ): Promise<CheckTemplateDetail> {
+    return this.templates.duplicate(auth, id, body.name);
   }
 
   @Post(':id/archive')

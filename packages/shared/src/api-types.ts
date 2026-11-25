@@ -3,10 +3,26 @@ import type { PermissionCode } from './permissions.js';
 import type { ImportRowStatus } from './plant-import.js';
 import type { PocCheckStatus, PocQuestionKey } from './poc.js';
 import type { AnswerValue, TemplateQuestion } from './reception.js';
+import type {
+  TemplateEligibility,
+  TemplateRecurrence,
+} from './schemas.js';
 import type { StandardRoleKey } from './roles.js';
 import type {
   ApprovalMode,
+  CheckDisplayStatus,
+  CheckSource,
+  CheckStatus,
   ClientType,
+  DefectSeverity,
+  DefectStatus,
+  NotificationKind,
+  ScheduleBasis,
+  ScheduleFrequency,
+  ScheduleState,
+  ScheduleUnit,
+  SeparationRule,
+  VerificationState,
   CustomFieldType,
   DocumentState,
   DocumentVerification,
@@ -285,6 +301,18 @@ export interface PlantDetail extends PlantSummary {
   statusChangedBy: string | null;
   /** Last approval; never-approved plant returns to Pending Reception. */
   approvedAt: string | null;
+  /**
+   * Open Defects raised by a question that took the plant Offline: returning
+   * it to service needs them closed or an authorised override (DFW-009).
+   */
+  blockingDefects: Array<{
+    id: string;
+    ref: string;
+    severity: DefectSeverity;
+    questionText: string;
+  }>;
+  /** Open and in-progress Defects on this plant. */
+  openDefects: number;
   /** An override of missing documents still within its review date. */
   complianceOverride: { until: string; note: string } | null;
   /**
@@ -309,6 +337,8 @@ export interface PlantDetail extends PlantSummary {
     archive: boolean;
     restrict: boolean;
     returnToService: boolean;
+    /** Return to service despite an open Defect (DFW-009). */
+    overrideDefects: boolean;
     printQr: boolean;
   };
 }
@@ -565,8 +595,14 @@ export interface TemplateVersionDetail {
   id: string;
   version: number;
   state: 'draft' | 'published';
+  /** manual: completion and approval are separate (TMP-011). */
   approvalMode: ApprovalMode;
   questions: TemplateQuestion[];
+  eligibility: TemplateEligibility;
+  separation: SeparationRule;
+  requireCorrectiveAction: boolean;
+  requireRepairEvidence: boolean;
+  recurrence: TemplateRecurrence | null;
   publishedAt: string | null;
   publishedBy: string | null;
 }
@@ -587,6 +623,10 @@ export interface CheckTemplateSummary {
 export interface CheckTemplateDetail extends CheckTemplateSummary {
   draft: TemplateVersionDetail | null;
   published: TemplateVersionDetail | null;
+  /** Checks not yet started on an earlier version (TMP-005). */
+  unstartedChecks: number;
+  /** Active schedules using this template. */
+  schedules: number;
   versions: Array<{
     version: number;
     state: 'draft' | 'published';
@@ -685,7 +725,9 @@ export interface MeterReading {
   value: number;
   unit: string;
   readAt: string;
-  source: 'manual' | 'reception';
+  source: 'manual' | 'reception' | 'check';
+  /** The check it came from, when source is check. */
+  check: { id: string; ref: string } | null;
   recordedBy: string;
   /** Why it is below the latest reading before it (meter replaced or reset). */
   resetReason: string | null;
@@ -739,4 +781,262 @@ export interface PlantImportRow {
 export interface PlantImportDetail extends PlantImportSummary {
   columns: Array<{ key: string; label: string; required: boolean }>;
   rows: PlantImportRow[];
+}
+
+// ------------------------------------------------- schedules and checks
+
+export interface CheckAssignee {
+  user: IdName | null;
+  team: IdName | null;
+  discipline: IdName | null;
+}
+
+export interface PlantRef {
+  id: string;
+  assetId: string;
+  name: string;
+  status: PlantStatus;
+  site: IdName;
+}
+
+export interface CheckSchedule {
+  id: string;
+  name: string;
+  template: IdName & { purpose: TemplatePurpose };
+  plant: PlantRef;
+  frequency: ScheduleFrequency;
+  customUnit: ScheduleUnit | null;
+  customCount: number | null;
+  /** e.g. "Every 6 weeks". */
+  recurrence: string;
+  basis: ScheduleBasis;
+  startOn: string;
+  nextDueOn: string;
+  requiresApproval: boolean;
+  assignee: CheckAssignee;
+  state: ScheduleState;
+  pauseReason: string | null;
+  pausedAt: string | null;
+  pausedBy: string | null;
+  /** The generated check waiting to be done, if any. */
+  openCheck: {
+    id: string;
+    ref: string;
+    status: CheckDisplayStatus;
+    dueOn: string | null;
+  } | null;
+  lastCompletedAt: string | null;
+  createdBy: string;
+  createdAt: string;
+  capabilities: { edit: boolean; pause: boolean; resume: boolean; end: boolean };
+}
+
+export interface CheckSummary {
+  id: string;
+  /** CHK-000001 */
+  ref: string;
+  plant: PlantRef;
+  template: IdName & { purpose: TemplatePurpose; version: number };
+  source: CheckSource;
+  status: CheckStatus;
+  /** Status as shown, with Overdue worked out in the organisation time zone. */
+  displayStatus: CheckDisplayStatus;
+  overdue: boolean;
+  availableOn: string | null;
+  dueOn: string | null;
+  assignee: CheckAssignee;
+  requiresReview: boolean;
+  schedule: IdName | null;
+  defect: { id: string; ref: string } | null;
+  startedAt: string | null;
+  submittedAt: string | null;
+  completedAt: string | null;
+  updatedAt: string;
+}
+
+export interface CheckAnswer {
+  questionId: string;
+  value: AnswerValue;
+  comment: string | null;
+  answeredBy: string;
+  answeredAt: string;
+}
+
+export interface CheckEvidence {
+  id: string;
+  questionId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
+/** One change to an answer; the first is the answer as first given. */
+export interface CheckAnswerChange {
+  questionId: string;
+  previousValue: AnswerValue;
+  previousComment: string | null;
+  value: AnswerValue;
+  comment: string | null;
+  changedBy: string;
+  changedAt: string;
+  afterSubmission: boolean;
+  reason: string | null;
+}
+
+export interface CheckSubmission {
+  id: string;
+  submittedBy: string;
+  submittedAt: string;
+  outcome: 'awaiting_review' | 'completed';
+  outcomeReasons: string[];
+  answers: CheckAnswer[];
+}
+
+export interface CheckDetail extends CheckSummary {
+  /** The questions of the version this check uses (CHK-002). */
+  questions: TemplateQuestion[];
+  answers: CheckAnswer[];
+  evidence: CheckEvidence[];
+  changes: CheckAnswerChange[];
+  submissions: CheckSubmission[];
+  /** Everyone who answered, changed or added evidence, and to what (EVD-003). */
+  contributors: Array<{ name: string; questionIds: string[] }>;
+  createdBy: string | null;
+  createdAt: string;
+  startedBy: string | null;
+  submittedBy: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewComment: string | null;
+  reviewOverrideReason: string | null;
+  cancelledBy: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  outcomeReasons: string[];
+  separationRequired: boolean;
+  defectsRaised: Array<{
+    id: string;
+    ref: string;
+    questionId: string;
+    severity: DefectSeverity;
+    status: DefectStatus;
+  }>;
+  /** Why this user cannot approve, e.g. separation of duties. */
+  reviewBlock: string | null;
+  /** Assignments, reschedules, reviews and other events (CHK-002). */
+  history: AuditEvent[];
+  capabilities: {
+    answer: boolean;
+    submit: boolean;
+    review: boolean;
+    /** Approve despite the separation block, with a reason (DFW-009). */
+    override: boolean;
+    reopen: boolean;
+    editSubmitted: boolean;
+    cancel: boolean;
+    assign: boolean;
+    reschedule: boolean;
+    export: boolean;
+  };
+}
+
+// ---------------------------------------------------------------- defects
+
+export interface DefectSummary {
+  id: string;
+  /** DEF-000001 */
+  ref: string;
+  plant: PlantRef;
+  severity: DefectSeverity;
+  status: DefectStatus;
+  questionText: string;
+  raisedBy: string;
+  raisedAt: string;
+  assignee: IdName | null;
+  verification: VerificationState;
+  restrictsPlant: boolean;
+  source: { kind: 'check' | 'reception'; id: string; ref: string | null };
+  updatedAt: string;
+}
+
+export interface DefectEvidence {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
+export interface DefectDetail extends DefectSummary {
+  answer: AnswerValue;
+  answerComment: string | null;
+  /** The evidence given with the failed answer. */
+  sourceEvidence: CheckEvidence[];
+  correctiveAction: string | null;
+  repairNotes: string | null;
+  workRecordedBy: string | null;
+  workRecordedAt: string | null;
+  evidence: DefectEvidence[];
+  verificationCheck: CheckSummary | null;
+  /** Published verification templates that apply to this plant. */
+  verificationTemplates: IdName[];
+  /** What the verification template makes mandatory (DFW-003). */
+  requireCorrectiveAction: boolean;
+  requireRepairEvidence: boolean;
+  startedBy: string | null;
+  startedAt: string | null;
+  closedBy: string | null;
+  closedAt: string | null;
+  closeNote: string | null;
+  reopenedBy: string | null;
+  reopenedAt: string | null;
+  reopenReason: string | null;
+  /** What still stops closing it (DFW-010). */
+  closeBlockers: string[];
+  history: AuditEvent[];
+  capabilities: {
+    assign: boolean;
+    start: boolean;
+    recordWork: boolean;
+    startVerification: boolean;
+    close: boolean;
+    reopen: boolean;
+  };
+}
+
+// --------------------------------------------------------- notifications
+
+export interface NotificationItem {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  link: string | null;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface NotificationList {
+  items: NotificationItem[];
+  unread: number;
+}
+
+/** Work counts for the dashboard, within the user's scope. */
+export interface WorkSummary {
+  checks: {
+    mine: number;
+    due: number;
+    overdue: number;
+    inProgress: number;
+    awaitingReview: number;
+  };
+  defects: {
+    open: number;
+    inProgress: number;
+    critical: number;
+    assignedToMe: number;
+  };
 }

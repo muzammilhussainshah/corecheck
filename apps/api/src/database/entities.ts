@@ -1,7 +1,19 @@
 import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
+import { normaliseQuestion } from '@corecheck/shared';
 import type {
   AnswerValue,
   ApprovalMode,
+  CheckSource,
+  CheckStatus,
+  DefectSeverity,
+  DefectStatus,
+  NotificationKind,
+  ScheduleBasis,
+  ScheduleFrequency,
+  ScheduleUnit,
+  SeparationRule,
+  TemplateEligibility,
+  TemplateRecurrence,
   ClientType,
   CustomFieldType,
   CustomValue,
@@ -510,7 +522,21 @@ export class CheckTemplateVersionEntity {
   @Column('integer') version!: number;
   @Column('text') state!: 'draft' | 'published';
   @Column('text') approvalMode!: ApprovalMode;
-  @Column('jsonb') questions!: TemplateQuestion[];
+  /** Read back with settings added since filled in (normaliseQuestion). */
+  @Column('jsonb', {
+    transformer: {
+      to: (value: TemplateQuestion[]) => value,
+      from: (value: TemplateQuestion[] | null) =>
+        (value ?? []).map((question) => normaliseQuestion(question)),
+    },
+  })
+  questions!: TemplateQuestion[];
+  @Column('jsonb') eligibility!: Partial<TemplateEligibility>;
+  @Column('text') separation!: SeparationRule;
+  @Column('boolean') requireCorrectiveAction!: boolean;
+  @Column('boolean') requireRepairEvidence!: boolean;
+  @Column('jsonb', { nullable: true })
+  recurrence!: TemplateRecurrence | null;
   @Column('timestamptz', { nullable: true }) publishedAt!: Date | null;
   @Column('uuid', { nullable: true }) publishedBy!: string | null;
   @Column('uuid') createdBy!: string;
@@ -604,8 +630,11 @@ export class MeterReadingEntity {
   @Column('numeric') value!: string;
   @Column('text') unit!: string;
   @Column('timestamptz') readAt!: Date;
-  @Column('text') source!: 'manual' | 'reception';
+  @Column('text') source!: 'manual' | 'reception' | 'check';
+  /** The reception it came from. */
   @Column('uuid', { nullable: true }) checkId!: string | null;
+  /** The check (inspection) it came from. */
+  @Column('uuid', { nullable: true }) inspectionId!: string | null;
   @Column('uuid') recordedBy!: string;
   /** Why a reading is below the meter's latest (replaced or reset meter). */
   @Column('text', { nullable: true }) resetReason!: string | null;
@@ -660,6 +689,215 @@ export class PlantSettingsEntity {
   @Column('jsonb') requiredFields!: PlantDetailKey[];
 }
 
+// ------------------------------------------- schedules and checks (M3)
+
+@Entity({ schema: SCHEMA, name: 'check_schedules' })
+export class CheckScheduleEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('text') name!: string;
+  @Column('uuid') templateId!: string;
+  @Column('uuid') plantId!: string;
+  @Column('text') frequency!: ScheduleFrequency;
+  @Column('text', { nullable: true }) customUnit!: ScheduleUnit | null;
+  @Column('integer', { nullable: true }) customCount!: number | null;
+  @Column('text') basis!: ScheduleBasis;
+  @Column('date') startOn!: string;
+  @Column('date') nextDueOn!: string;
+  @Column('boolean') requiresApproval!: boolean;
+  @Column('uuid', { nullable: true }) assigneeUserId!: string | null;
+  @Column('uuid', { nullable: true }) assigneeTeamId!: string | null;
+  @Column('uuid', { nullable: true }) assigneeDisciplineId!: string | null;
+  @Column('timestamptz', { nullable: true }) pausedAt!: Date | null;
+  @Column('uuid', { nullable: true }) pausedBy!: string | null;
+  @Column('text', { nullable: true }) pauseReason!: string | null;
+  @Column('timestamptz', { nullable: true }) plantPausedAt!: Date | null;
+  @Column('timestamptz', { nullable: true }) archivedAt!: Date | null;
+  @Column('uuid') createdBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'checks' })
+export class CheckEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  /** Numbered by the database on insert. */
+  @Column({ type: 'integer', insert: false, update: false }) refNo!: number;
+  @Column('uuid') plantId!: string;
+  @Column('uuid') templateVersionId!: string;
+  @Column('text') source!: CheckSource;
+  @Column('uuid', { nullable: true }) scheduleId!: string | null;
+  @Column('uuid', { nullable: true }) defectId!: string | null;
+  @Column('text') status!: CheckStatus;
+  @Column('uuid', { nullable: true }) assigneeUserId!: string | null;
+  @Column('uuid', { nullable: true }) assigneeTeamId!: string | null;
+  @Column('uuid', { nullable: true }) assigneeDisciplineId!: string | null;
+  @Column('date', { nullable: true }) availableOn!: string | null;
+  @Column('date', { nullable: true }) dueOn!: string | null;
+  @Column('boolean') requiresReview!: boolean;
+  @Column('boolean') separationRequired!: boolean;
+  @Column('uuid', { nullable: true }) createdBy!: string | null;
+  @Column('timestamptz', { nullable: true }) startedAt!: Date | null;
+  @Column('uuid', { nullable: true }) startedBy!: string | null;
+  @Column('timestamptz', { nullable: true }) submittedAt!: Date | null;
+  @Column('uuid', { nullable: true }) submittedBy!: string | null;
+  @Column('timestamptz', { nullable: true }) reviewedAt!: Date | null;
+  @Column('uuid', { nullable: true }) reviewedBy!: string | null;
+  @Column('text', { nullable: true }) reviewComment!: string | null;
+  @Column('text', { nullable: true }) reviewOverrideReason!: string | null;
+  @Column('timestamptz', { nullable: true }) completedAt!: Date | null;
+  @Column('timestamptz', { nullable: true }) cancelledAt!: Date | null;
+  @Column('uuid', { nullable: true }) cancelledBy!: string | null;
+  @Column('text', { nullable: true }) cancelReason!: string | null;
+  @Column('timestamptz', { nullable: true }) overdueNotifiedAt!: Date | null;
+  @Column('jsonb') outcomeReasons!: string[];
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'check_answers' })
+export class CheckAnswerEntity {
+  @PrimaryColumn('uuid') checkId!: string;
+  @PrimaryColumn('text') questionId!: string;
+  @Column('uuid') orgId!: string;
+  @Column('jsonb', { nullable: true }) value!: AnswerValue;
+  @Column('text', { nullable: true }) comment!: string | null;
+  @Column('uuid') answeredBy!: string;
+  @Column('timestamptz') answeredAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'check_answer_changes' })
+export class CheckAnswerChangeEntity {
+  @PrimaryGeneratedColumn('increment') id!: number;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') checkId!: string;
+  @Column('text') questionId!: string;
+  @Column('jsonb', { nullable: true }) previousValue!: AnswerValue;
+  @Column('text', { nullable: true }) previousComment!: string | null;
+  @Column('jsonb', { nullable: true }) value!: AnswerValue;
+  @Column('text', { nullable: true }) comment!: string | null;
+  @Column('uuid') changedBy!: string;
+  @Column('timestamptz') changedAt!: Date;
+  @Column('boolean') afterSubmission!: boolean;
+  @Column('text', { nullable: true }) reason!: string | null;
+}
+
+@Entity({ schema: SCHEMA, name: 'check_evidence' })
+export class CheckEvidenceEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') checkId!: string;
+  @Column('text') questionId!: string;
+  @Column('text') storagePath!: string;
+  @Column('text') fileName!: string;
+  @Column('text') contentType!: string;
+  @Column('integer') sizeBytes!: number;
+  @Column('uuid') uploadedBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  uploadedAt!: Date;
+  @Column('timestamptz', { nullable: true }) removedAt!: Date | null;
+  @Column('uuid', { nullable: true }) removedBy!: string | null;
+}
+
+/** An answer as it stood when a check was submitted. */
+export interface SubmittedCheckAnswer {
+  questionId: string;
+  value: AnswerValue;
+  comment: string | null;
+  answeredBy: string;
+  answeredAt: string;
+  evidence: string[];
+}
+
+@Entity({ schema: SCHEMA, name: 'check_submissions' })
+export class CheckSubmissionEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') checkId!: string;
+  @Column('uuid') submittedBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  submittedAt!: Date;
+  @Column('jsonb') answers!: SubmittedCheckAnswer[];
+  @Column('text') outcome!: 'awaiting_review' | 'completed';
+  @Column('jsonb') outcomeReasons!: string[];
+}
+
+// ---------------------------------------------------------- defects (M3)
+
+@Entity({ schema: SCHEMA, name: 'defects' })
+export class DefectEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column({ type: 'integer', insert: false, update: false }) refNo!: number;
+  @Column('uuid') plantId!: string;
+  @Column('uuid', { nullable: true }) checkId!: string | null;
+  @Column('uuid', { nullable: true }) receptionCheckId!: string | null;
+  @Column('text') questionId!: string;
+  @Column('text') questionText!: string;
+  @Column('jsonb', { nullable: true }) answer!: AnswerValue;
+  @Column('text', { nullable: true }) answerComment!: string | null;
+  @Column('uuid') raisedBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  raisedAt!: Date;
+  @Column('text') severity!: DefectSeverity;
+  @Column('text') status!: DefectStatus;
+  @Column('boolean') restrictsPlant!: boolean;
+  @Column('uuid', { nullable: true }) assigneeUserId!: string | null;
+  @Column('text', { nullable: true }) correctiveAction!: string | null;
+  @Column('text', { nullable: true }) repairNotes!: string | null;
+  @Column('uuid', { nullable: true }) workRecordedBy!: string | null;
+  @Column('timestamptz', { nullable: true }) workRecordedAt!: Date | null;
+  @Column('uuid', { nullable: true }) verificationCheckId!: string | null;
+  @Column('timestamptz', { nullable: true }) startedAt!: Date | null;
+  @Column('uuid', { nullable: true }) startedBy!: string | null;
+  @Column('timestamptz', { nullable: true }) closedAt!: Date | null;
+  @Column('uuid', { nullable: true }) closedBy!: string | null;
+  @Column('text', { nullable: true }) closeNote!: string | null;
+  @Column('timestamptz', { nullable: true }) reopenedAt!: Date | null;
+  @Column('uuid', { nullable: true }) reopenedBy!: string | null;
+  @Column('text', { nullable: true }) reopenReason!: string | null;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  updatedAt!: Date;
+}
+
+@Entity({ schema: SCHEMA, name: 'defect_evidence' })
+export class DefectEvidenceEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') defectId!: string;
+  @Column('text') storagePath!: string;
+  @Column('text') fileName!: string;
+  @Column('text') contentType!: string;
+  @Column('integer') sizeBytes!: number;
+  @Column('uuid') uploadedBy!: string;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  uploadedAt!: Date;
+  @Column('timestamptz', { nullable: true }) removedAt!: Date | null;
+}
+
+@Entity({ schema: SCHEMA, name: 'notifications' })
+export class NotificationEntity {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column('uuid') orgId!: string;
+  @Column('uuid') userId!: string;
+  @Column('text') kind!: NotificationKind;
+  @Column('text') title!: string;
+  @Column('text') body!: string;
+  @Column('text', { nullable: true }) link!: string | null;
+  @Column('text', { nullable: true }) entityType!: string | null;
+  @Column('uuid', { nullable: true }) entityId!: string | null;
+  @Column({ type: 'timestamptz', insert: false, update: false })
+  createdAt!: Date;
+  @Column('timestamptz', { nullable: true }) readAt!: Date | null;
+}
+
 export const ENTITIES = [
   OrganisationEntity,
   RoleEntity,
@@ -702,4 +940,13 @@ export const ENTITIES = [
   PlantImportEntity,
   PlantImportRowEntity,
   PlantSettingsEntity,
+  CheckScheduleEntity,
+  CheckEntity,
+  CheckAnswerEntity,
+  CheckAnswerChangeEntity,
+  CheckEvidenceEntity,
+  CheckSubmissionEntity,
+  DefectEntity,
+  DefectEvidenceEntity,
+  NotificationEntity,
 ];

@@ -59,6 +59,16 @@ export const ERROR_CODES = {
   /** Plant held by its reception: approving the reception lifts it. */
   RECEPTION_APPROVAL_REQUIRED: 'RECEPTION_APPROVAL_REQUIRED',
   INCOMPLETE_SUBMISSION: 'INCOMPLETE_SUBMISSION',
+
+  // Checks and Defects
+  /** The user completed or answered this verification (DFW-006). */
+  SEPARATION_REQUIRED: 'SEPARATION_REQUIRED',
+  /** The Defect's verification is not complete and approved (DEF-AC-02). */
+  VERIFICATION_REQUIRED: 'VERIFICATION_REQUIRED',
+  /** An open Defect keeps the plant Offline; an authorised override can pass it. */
+  DEFECTS_OPEN: 'DEFECTS_OPEN',
+  /** The user is not among those the template lets do this check (TMP-008). */
+  NOT_ELIGIBLE: 'NOT_ELIGIBLE',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

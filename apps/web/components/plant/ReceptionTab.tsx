@@ -10,8 +10,6 @@ import {
   Group,
   Loader,
   Modal,
-  NumberInput,
-  SegmentedControl,
   Select,
   Stack,
   Text,
@@ -24,12 +22,13 @@ import {
   type AnswerValue,
   answerFails,
   type ApiError,
+  describeCondition,
   evidenceRequired,
   type PlantDetail,
+  questionVisible,
   RECEPTION_STATUS_LABELS,
   type ReceptionCheck,
   type ReceptionStatus,
-  type TemplateQuestion,
 } from '@corecheck/shared';
 import {
   COLORS,
@@ -52,6 +51,7 @@ import {
 import { useConfigList } from '../../lib/config';
 import { openFile } from '../../lib/download';
 import { useSession } from '../../lib/session';
+import { AnswerInput, showValue } from '../checks/AnswerInput';
 
 const STATUS_TONES: Record<ReceptionStatus, Tone> = {
   open: 'info',
@@ -69,80 +69,6 @@ const ReceptionBadge = ({ status }: { status: ReceptionStatus }) => (
 interface Draft {
   value: AnswerValue;
   comment: string;
-}
-
-const showValue = (question: TemplateQuestion, value: AnswerValue) => {
-  if (value === null) return '—';
-  if (value === 'pass') return 'Pass';
-  if (value === 'fail') return 'Fail';
-  if (value === 'yes') return 'Yes';
-  if (value === 'no') return 'No';
-  return String(value);
-};
-
-/** The input for one question while the check is being filled in. */
-function AnswerInput({
-  question,
-  value,
-  unit,
-  onChange,
-}: {
-  question: TemplateQuestion;
-  value: AnswerValue;
-  unit?: string;
-  onChange: (value: AnswerValue) => void;
-}) {
-  switch (question.type) {
-    case 'pass_fail':
-    case 'yes_no': {
-      const options =
-        question.type === 'pass_fail'
-          ? [
-              { value: 'pass', label: 'Pass' },
-              { value: 'fail', label: 'Fail' },
-            ]
-          : [
-              { value: 'yes', label: 'Yes' },
-              { value: 'no', label: 'No' },
-            ];
-      return (
-        <SegmentedControl
-          aria-label={question.text}
-          data={options}
-          value={typeof value === 'string' ? value : ''}
-          onChange={onChange}
-          style={{ alignSelf: 'flex-start' }}
-        />
-      );
-    }
-    case 'number':
-    case 'meter':
-      return (
-        <NumberInput
-          aria-label={question.text}
-          maw={240}
-          suffix={unit ? ` ${unit}` : undefined}
-          min={question.type === 'meter' ? 0 : undefined}
-          // Never change what was typed: a negative meter reading is
-          // rejected with a message, not saved as 0.
-          clampBehavior="none"
-          value={typeof value === 'number' ? value : ''}
-          onChange={(next) => onChange(typeof next === 'number' ? next : null)}
-        />
-      );
-    case 'text':
-      return (
-        <Textarea
-          aria-label={question.text}
-          autosize
-          minRows={2}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(event) => onChange(event.currentTarget.value)}
-        />
-      );
-    default:
-      return null;
-  }
 }
 
 function ReturnModal({
@@ -410,6 +336,11 @@ function CheckView({
       </Card>
 
       {check.questions.map((question, index) => {
+        // Follow-ups are asked only when their condition is met (TMP-009).
+        const asked = questionVisible(question, check.questions, (id) =>
+          can.answer ? draftOf(id).value : answerOf(id)?.value,
+        );
+        if (!asked) return null;
         const draft = draftOf(question.id);
         const fails = answerFails(question, draft.value);
         const photos = photosOf(question.id);
@@ -444,6 +375,11 @@ function CheckView({
                 </Text>
                 {fails && <Pill tone="danger">Fail</Pill>}
               </Group>
+              {question.showIf && (
+                <Text size="xs" c={COLORS.muted}>
+                  Follow-up: {describeCondition(question.showIf, check.questions)}
+                </Text>
+              )}
               {can.answer ? (
                 <>
                   <AnswerInput
@@ -472,7 +408,7 @@ function CheckView({
               ) : (
                 question.type !== 'photo' && (
                   <Text size="sm">
-                    {showValue(question, answer?.value ?? null)}
+                    {showValue(answer?.value ?? null)}
                     {unit && answer?.value != null ? ` ${unit}` : ''}
                     {answer?.comment ? ` — ${answer.comment}` : ''}
                   </Text>
@@ -633,7 +569,7 @@ function AssignCard({ plantId }: { plantId: string }) {
             value: item.id,
             label: `${item.name} (v${item.publishedVersion})`,
           }))}
-          nothingFoundMessage="Publish a template under Manage › Reception templates"
+          nothingFoundMessage="Publish a reception template under Manage › Templates"
           value={templateId}
           onChange={setTemplateId}
         />

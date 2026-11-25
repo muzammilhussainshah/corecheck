@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { In } from 'typeorm';
 import {
+  type AnswerValue,
   type createMeterReadingSchema,
   ERROR_CODES,
   type MeterReading,
@@ -228,6 +229,68 @@ export class MetersService {
     }
   }
 
+  /**
+   * Records the meter questions of a finished check (MTR-003, MOB-004). A
+   * reading that would make the meter go down is refused with the question,
+   * so it is recorded on the Meter readings tab with its reason first.
+   */
+  async recordFromCheck(
+    actor: AuditActor,
+    plant: PlantEntity,
+    check: { id: string; ref: string },
+    questions: TemplateQuestion[],
+    answers: Array<{
+      questionId: string;
+      value: AnswerValue;
+      answeredBy: string;
+      answeredAt: Date;
+    }>,
+  ): Promise<void> {
+    for (const question of questions) {
+      if (question.type !== 'meter' || !question.meterTypeId) continue;
+      const answer = answers.find((a) => a.questionId === question.id);
+      if (typeof answer?.value !== 'number') continue;
+      const meter = await this.db.findOneByOrFail(MeterTypeEntity, {
+        id: question.meterTypeId,
+      });
+      const exists = await this.db.findOneBy(MeterReadingEntity, {
+        inspectionId: check.id,
+        meterTypeId: meter.id,
+      });
+      if (exists) continue;
+      const drop = await this.decrease(
+        plant.id,
+        meter,
+        answer.value,
+        answer.answeredAt,
+      );
+      if (drop)
+        throw conflict(
+          ERROR_CODES.CONFLICT,
+          `"${question.text}" (${answer.value} ${meter.unit}) is not in order with the plant's readings. ${drop.message.replace('give the reason', 'record that on the Meter readings tab with the reason')}`,
+          { questionId: question.id },
+        );
+      await this.db.insert(MeterReadingEntity, {
+        orgId: this.tenantDb.orgId,
+        plantId: plant.id,
+        meterTypeId: meter.id,
+        value: String(answer.value),
+        unit: meter.unit,
+        readAt: answer.answeredAt,
+        source: 'check',
+        inspectionId: check.id,
+        recordedBy: answer.answeredBy,
+      });
+      await this.record_(
+        actor,
+        plant,
+        'meter.recorded',
+        `Recorded ${meter.name} ${answer.value} ${meter.unit} for ${plant.assetId} from ${check.ref}`,
+        { checkId: check.id },
+      );
+    }
+  }
+
   async correct(
     auth: CustomerAuth,
     readingId: string,
@@ -292,6 +355,19 @@ export class MetersService {
       const user = users.find((candidate) => candidate.id === id);
       return user ? fullName(user) : 'Unknown';
     };
+    const inspections = [
+      ...new Set(rows.flatMap((row) => (row.inspectionId ? [row.inspectionId] : []))),
+    ];
+    const refs = new Map(
+      inspections.length
+        ? (
+            (await this.db.query(
+              'select id, ref_no as "refNo" from corecheck.checks where id = any($1::uuid[])',
+              [inspections],
+            )) as Array<{ id: string; refNo: number }>
+          ).map((row) => [row.id, row.refNo])
+        : [],
+    );
     return rows.map((row) => {
       const meter = meters.find((item) => item.id === row.meterTypeId)!;
       return {
@@ -301,6 +377,12 @@ export class MetersService {
         unit: row.unit,
         readAt: row.readAt.toISOString(),
         source: row.source,
+        check: row.inspectionId
+          ? {
+              id: row.inspectionId,
+              ref: `CHK-${String(refs.get(row.inspectionId) ?? 0).padStart(6, '0')}`,
+            }
+          : null,
         recordedBy: name(row.recordedBy),
         resetReason: row.resetReason,
         corrections: corrections

@@ -185,9 +185,44 @@ export const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 
 // ------------------------------------------------- templates and reception
 
-/** What a check template is for (TMP-009). Milestone 3 adds the others. */
-export const TEMPLATE_PURPOSES = ['reception'] as const;
+/** What a check template is for (TMP-007). */
+export const TEMPLATE_PURPOSES = [
+  'reception',
+  'operational',
+  'technical',
+  'maintenance',
+  'defect_verification',
+] as const;
 export type TemplatePurpose = (typeof TEMPLATE_PURPOSES)[number];
+
+export const TEMPLATE_PURPOSE_LABELS: Record<TemplatePurpose, string> = {
+  reception: 'Reception',
+  operational: 'Operational',
+  technical: 'Technical',
+  maintenance: 'Maintenance',
+  defect_verification: 'Defect verification',
+};
+
+/** Purposes a check (rather than a reception) is made from. */
+export const CHECK_PURPOSES: readonly TemplatePurpose[] = [
+  'operational',
+  'technical',
+  'maintenance',
+];
+
+/**
+ * Who may not approve a verification they completed (DFW-006, DFW-007):
+ * on by default for Major and Critical Defects, and can be widened or
+ * turned off in the template.
+ */
+export const SEPARATION_RULES = ['major_critical', 'all', 'none'] as const;
+export type SeparationRule = (typeof SEPARATION_RULES)[number];
+
+export const SEPARATION_RULE_LABELS: Record<SeparationRule, string> = {
+  major_critical: 'Required for Major and Critical Defects',
+  all: 'Required for every Defect',
+  none: 'Not required',
+};
 
 /** Whether a passed reception goes straight Online (REC-004). */
 export const APPROVAL_MODES = ['automatic', 'manual'] as const;
@@ -201,6 +236,7 @@ export const APPROVAL_MODE_LABELS: Record<ApprovalMode, string> = {
 export const QUESTION_TYPES = [
   'pass_fail',
   'yes_no',
+  'single_select',
   'text',
   'number',
   'photo',
@@ -211,9 +247,10 @@ export type QuestionType = (typeof QUESTION_TYPES)[number];
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   pass_fail: 'Pass / fail',
   yes_no: 'Yes / no',
+  single_select: 'Single selection',
   text: 'Text',
-  number: 'Number',
-  photo: 'Photo',
+  number: 'Number / measurement',
+  photo: 'Photo or file',
   meter: 'Meter reading',
 };
 
@@ -254,3 +291,164 @@ export const RECEPTION_STATUS_LABELS: Record<ReceptionStatus, string> = {
   restricted: 'Restricted',
   cancelled: 'Cancelled',
 };
+
+// ------------------------------------------------------------- schedules
+
+/** Supported recurrence (SCH-002). */
+export const SCHEDULE_FREQUENCIES = [
+  'daily',
+  'weekly',
+  'monthly',
+  'quarterly',
+  'annual',
+  'custom',
+] as const;
+export type ScheduleFrequency = (typeof SCHEDULE_FREQUENCIES)[number];
+
+export const SCHEDULE_FREQUENCY_LABELS: Record<ScheduleFrequency, string> = {
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  annual: 'Annual',
+  custom: 'Custom interval',
+};
+
+export const SCHEDULE_UNITS = ['day', 'week', 'month', 'year'] as const;
+export type ScheduleUnit = (typeof SCHEDULE_UNITS)[number];
+
+export const SCHEDULE_UNIT_LABELS: Record<ScheduleUnit, string> = {
+  day: 'days',
+  week: 'weeks',
+  month: 'months',
+  year: 'years',
+};
+
+/** What the next due date counts from (SCH-009). */
+export const SCHEDULE_BASES = ['completion', 'due_date'] as const;
+export type ScheduleBasis = (typeof SCHEDULE_BASES)[number];
+
+export const SCHEDULE_BASIS_LABELS: Record<ScheduleBasis, string> = {
+  completion: 'From the date the last check was completed',
+  due_date: 'From the last due date (fixed cycle)',
+};
+
+export const SCHEDULE_STATES = [
+  'active',
+  'paused',
+  'plant_offline',
+  'archived',
+] as const;
+export type ScheduleState = (typeof SCHEDULE_STATES)[number];
+
+export const SCHEDULE_STATE_LABELS: Record<ScheduleState, string> = {
+  active: 'Active',
+  paused: 'Paused',
+  plant_offline: 'Paused: plant out of service',
+  archived: 'Ended',
+};
+
+// ----------------------------------------------------------------- checks
+
+/** Stored check statuses (Appendix A). */
+export const CHECK_STATUSES = [
+  'scheduled',
+  'due',
+  'in_progress',
+  'submitted',
+  'returned',
+  'completed',
+  'rejected',
+  'cancelled',
+] as const;
+export type CheckStatus = (typeof CHECK_STATUSES)[number];
+
+/** As shown: Overdue is a due date passed without submission (SCH-007). */
+export type CheckDisplayStatus = CheckStatus | 'overdue';
+
+export const CHECK_STATUS_LABELS: Record<CheckDisplayStatus, string> = {
+  scheduled: 'Scheduled',
+  due: 'Due',
+  in_progress: 'In Progress',
+  submitted: 'Submitted/Awaiting Review',
+  returned: 'Returned for correction',
+  completed: 'Completed',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled/Voided',
+  overdue: 'Overdue',
+};
+
+/** Not yet submitted: can be answered, and can become Overdue. */
+export const OPEN_CHECK_STATUSES: readonly CheckStatus[] = [
+  'scheduled',
+  'due',
+  'in_progress',
+  'returned',
+];
+
+export const CHECK_SOURCES = [
+  'schedule',
+  'manual',
+  'defect_verification',
+] as const;
+export type CheckSource = (typeof CHECK_SOURCES)[number];
+
+export const CHECK_SOURCE_LABELS: Record<CheckSource, string> = {
+  schedule: 'Scheduled',
+  manual: 'Assigned',
+  defect_verification: 'Defect verification',
+};
+
+/** The list views of the Checks page. */
+export const CHECK_VIEWS = [
+  'mine',
+  'due',
+  'overdue',
+  'upcoming',
+  'review',
+  'all',
+] as const;
+export type CheckView = (typeof CHECK_VIEWS)[number];
+
+// ---------------------------------------------------------------- defects
+
+export const DEFECT_STATUSES = ['open', 'in_progress', 'closed'] as const;
+export type DefectStatus = (typeof DEFECT_STATUSES)[number];
+
+export const DEFECT_STATUS_LABELS: Record<DefectStatus, string> = {
+  open: 'Open',
+  in_progress: 'In Progress',
+  closed: 'Closed',
+};
+
+/** Where a Defect stands against its verification (DFW-004..011). */
+export const VERIFICATION_STATES = [
+  'not_started',
+  'in_progress',
+  'awaiting_approval',
+  'approved',
+  'returned',
+] as const;
+export type VerificationState = (typeof VERIFICATION_STATES)[number];
+
+export const VERIFICATION_STATE_LABELS: Record<VerificationState, string> = {
+  not_started: 'Verification not started',
+  in_progress: 'Verification in progress',
+  awaiting_approval: 'Verification awaiting approval',
+  approved: 'Verification complete',
+  returned: 'Verification returned',
+};
+
+// ---------------------------------------------------------- notifications
+
+export const NOTIFICATION_KINDS = [
+  'check_assigned',
+  'check_overdue',
+  'check_returned',
+  'check_awaiting_review',
+  'defect_raised',
+  'defect_assigned',
+  'verification_awaiting_approval',
+  'verification_no_approver',
+] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];

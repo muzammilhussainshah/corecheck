@@ -21,11 +21,13 @@ import {
 import { newTotpSecret, totpUri } from '../platform/totp.js';
 import { provisionOrganisation } from '../platform/provisioning.js';
 import { generateUsername } from '../users/username.js';
+import { seedChecks } from './seed-checks.js';
 import { seedPlant } from './seed-plant.js';
 
 /**
  * Local demo data: a staff owner, one organisation with sites, teams, a user
- * for every standard role, offline-sync checks and plant at each stage. Development only —
+ * for every standard role, offline-sync checks, plant at each stage, and
+ * check templates, schedules, a completed check and a Defect. Development only —
  * the credentials it prints are deliberately simple.
  *
  *   npm run seed:demo -w @corecheck/api
@@ -133,6 +135,7 @@ const run = async () => {
       });
       if (existing) {
         await seedPlant(manager, env, existing.id);
+        await seedChecks(manager, existing.id);
         console.log(`"${ORG_NAME}" already exists; nothing else to do.`);
         return;
       }
@@ -264,6 +267,7 @@ const run = async () => {
       }
 
       await seedPlant(manager, env, orgId);
+      await seedChecks(manager, orgId);
 
       console.log(
         `\nSeeded "${ORG_NAME}". Customer sign-ins (web :3100, mobile):`,

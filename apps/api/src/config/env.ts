@@ -84,6 +84,16 @@ const envObject = z.object({
     .min(0)
     .max(1440)
     .default(60),
+  /**
+   * How often to generate scheduled checks, make them Due and flag Overdue
+   * work (FRD 11). 0 turns it off (tests run it themselves).
+   */
+  SCHEDULE_SWEEP_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(1440)
+    .default(15),
   SUPABASE_STORAGE_BUCKET: z
     .string()
     .regex(/^[a-z0-9][a-z0-9-]{1,62}$/, 'Use lower-case letters, digits and -.')

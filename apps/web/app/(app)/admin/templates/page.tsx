@@ -22,6 +22,9 @@ import {
   APPROVAL_MODES,
   type ApprovalMode,
   type CheckTemplateSummary,
+  TEMPLATE_PURPOSE_LABELS,
+  TEMPLATE_PURPOSES,
+  type TemplatePurpose,
 } from '@corecheck/shared';
 import {
   ArchivedBadge,
@@ -55,7 +58,8 @@ function NewTemplateModal({
     initialValues: {
       name: '',
       description: '',
-      approvalMode: 'manual' as ApprovalMode,
+      purpose: 'operational' as TemplatePurpose,
+      approvalMode: 'automatic' as ApprovalMode,
     },
     validate: {
       name: (value) => (value.trim() ? null : 'Template name is required.'),
@@ -69,13 +73,30 @@ function NewTemplateModal({
     router.push(`/admin/templates/${result.data.id}`);
   });
   return (
-    <Modal opened={opened} onClose={onClose} title="New reception template">
+    <Modal opened={opened} onClose={onClose} title="New template">
       <form onSubmit={submit} noValidate>
         <Stack>
+          <Select
+            label="Purpose"
+            allowDeselect={false}
+            data={TEMPLATE_PURPOSES.map((purpose) => ({
+              value: purpose,
+              label: TEMPLATE_PURPOSE_LABELS[purpose],
+            }))}
+            {...form.getInputProps('purpose')}
+            onChange={(value) => {
+              form.setFieldValue('purpose', value as TemplatePurpose);
+              // Verification needs approval by default (DFW-005, DFW-007).
+              form.setFieldValue(
+                'approvalMode',
+                value === 'operational' ? 'automatic' : 'manual',
+              );
+            }}
+          />
           <TextInput
             label="Name"
             required
-            placeholder="e.g. Standard plant reception"
+            placeholder="e.g. Daily pre-use check"
             {...form.getInputProps('name')}
           />
           <Textarea
@@ -85,11 +106,20 @@ function NewTemplateModal({
             {...form.getInputProps('description')}
           />
           <Select
-            label="When a reception passes"
+            label={
+              form.values.purpose === 'reception'
+                ? 'When a reception passes'
+                : 'Completion and approval'
+            }
             allowDeselect={false}
             data={APPROVAL_MODES.map((mode) => ({
               value: mode,
-              label: APPROVAL_MODE_LABELS[mode],
+              label:
+                form.values.purpose === 'reception'
+                  ? APPROVAL_MODE_LABELS[mode]
+                  : mode === 'manual'
+                    ? 'Completion and approval are separate'
+                    : 'Complete on submission',
             }))}
             {...form.getInputProps('approvalMode')}
           />
@@ -107,15 +137,16 @@ function NewTemplateModal({
   );
 }
 
-/** Reception templates (FRD 10): drafts and published versions. */
+/** Check templates (FRD 10): every purpose, drafts and published versions. */
 export default function TemplatesPage() {
   const router = useRouter();
   const { can } = useSession();
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
+  const [purpose, setPurpose] = useState<TemplatePurpose | null>(null);
   const [creating, { open, close }] = useDisclosure();
   const { data, isFetching, error } = useTemplatesQuery({
-    purpose: 'reception',
+    purpose: purpose ?? undefined,
     includeArchived: showArchived,
   });
   const term = search.trim().toLowerCase();
@@ -141,6 +172,14 @@ export default function TemplatesPage() {
             </Text>
           )}
         </Stack>
+      ),
+    },
+    {
+      key: 'purpose',
+      header: 'Purpose',
+      width: 170,
+      render: (item) => (
+        <Text size="sm">{TEMPLATE_PURPOSE_LABELS[item.purpose]}</Text>
       ),
     },
     {
@@ -174,8 +213,8 @@ export default function TemplatesPage() {
   return (
     <>
       <AppPageHeader
-        title="Reception templates"
-        description="The questions asked when plant arrives. Published versions never change; editing starts a new version."
+        title="Templates"
+        description="Reception, operational, technical, maintenance and Defect verification checks. Published versions never change; editing starts a new version."
         actions={
           can('templates.manage') && (
             <Button leftSection={<IconPlus size={16} />} onClick={open}>
@@ -187,11 +226,25 @@ export default function TemplatesPage() {
       <TableCard
         toolbar={
           <>
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Search templates"
-            />
+            <Group gap="sm">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search templates"
+              />
+              <Select
+                aria-label="Purpose"
+                placeholder="All purposes"
+                clearable
+                w={200}
+                data={TEMPLATE_PURPOSES.map((item) => ({
+                  value: item,
+                  label: TEMPLATE_PURPOSE_LABELS[item],
+                }))}
+                value={purpose}
+                onChange={(value) => setPurpose(value as TemplatePurpose | null)}
+              />
+            </Group>
             <Switch
               label="Show archived"
               checked={showArchived}
@@ -211,8 +264,8 @@ export default function TemplatesPage() {
             onRowClick={(item) => router.push(`/admin/templates/${item.id}`)}
             empty={
               <EmptyState
-                title="No reception templates yet"
-                message="Create one so plant can go through reception."
+                title="No templates yet"
+                message="Create a reception template so plant can be received, and check templates for inspections."
               />
             }
           />

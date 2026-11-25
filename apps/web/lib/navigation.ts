@@ -3,6 +3,7 @@ import {
   IconBuildingFactory2,
   IconBuildingStore,
   IconBulldozer,
+  IconCalendarRepeat,
   IconCategory,
   IconChartBar,
   IconChecklist,
@@ -149,6 +150,13 @@ export const ADMIN_NAV: NavItem[] = [
     href: '/admin/templates',
     icon: IconClipboardList,
     anyOf: ['templates.manage'],
+    group: 'Plant',
+  },
+  {
+    label: 'Schedules',
+    href: '/admin/schedules',
+    icon: IconCalendarRepeat,
+    anyOf: ['schedules.manage_rules'],
     group: 'Plant',
   },
   {

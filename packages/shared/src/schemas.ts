@@ -6,6 +6,13 @@ import { POC_QUESTION_KEYS } from './poc.js';
 import { questionCanFail, type TemplateQuestion } from './reception.js';
 import {
   APPROVAL_MODES,
+  CHECK_STATUSES,
+  CHECK_VIEWS,
+  DEFECT_STATUSES,
+  SCHEDULE_BASES,
+  SCHEDULE_FREQUENCIES,
+  SCHEDULE_UNITS,
+  SEPARATION_RULES,
   CLIENT_TYPES,
   CUSTOM_FIELD_TYPES,
   DEFECT_SEVERITIES,
@@ -516,8 +523,19 @@ export const returnToServiceSchema = z
     note: optionalText('Note', 500),
     override: z.boolean().default(false),
     reviewOn: z.union([z.literal(''), isoDate]).optional(),
+    /**
+     * Returns plant to service although a Defect that took it Offline is
+     * still open (DFW-009); needs the Defect override permission and a reason.
+     */
+    overrideDefects: z.boolean().default(false),
   })
   .superRefine((data, ctx) => {
+    if (data.overrideDefects && !data.note)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['note'],
+        message: 'Give the reason for the override.',
+      });
     if (!data.override) return;
     if (!data.note)
       ctx.addIssue({
@@ -599,14 +617,44 @@ export const templateQuestionSchema = z
     meterTypeId: z.uuid().nullable().default(null),
     requireComment: z.enum(EVIDENCE_RULES).default('never'),
     requirePhoto: z.enum(EVIDENCE_RULES).default('never'),
+    options: z
+      .array(
+        z
+          .string()
+          .trim()
+          .min(1, 'A choice cannot be blank.')
+          .max(100, 'Keep each choice to 100 characters or fewer.'),
+      )
+      .max(30, 'Use 30 choices or fewer.')
+      .default([]),
+    failOptions: z.array(z.string().trim().max(100)).max(30).default([]),
     offlineOnFail: z.boolean().default(false),
     defectSeverity: z.enum(DEFECT_SEVERITIES).nullable().default(null),
+    showIf: z
+      .object({
+        questionId: z.string().trim().min(1).max(40),
+        when: z.enum(['fail', 'pass', 'values']),
+        values: z.array(z.string().trim().max(100)).max(30).default([]),
+      })
+      .nullable()
+      .default(null),
   })
   .superRefine((question, ctx) => {
     const issue = (path: string, message: string) =>
       ctx.addIssue({ code: 'custom', path: [path], message });
     if (question.type === 'meter' && !question.meterTypeId)
       issue('meterTypeId', 'Choose the meter this question reads.');
+    if (question.type === 'single_select') {
+      if (question.options.length < 2)
+        issue('options', 'Give at least two choices.');
+      const lower = question.options.map((option) => option.toLowerCase());
+      if (new Set(lower).size !== lower.length)
+        issue('options', 'Each choice must be different.');
+      if (question.failOptions.some((item) => !question.options.includes(item)))
+        issue('failOptions', 'A failing choice must be one of the choices.');
+    }
+    if (question.showIf?.when === 'values' && !question.showIf.values.length)
+      issue('showIf', 'Choose the answers that ask this question.');
     if (
       question.min !== null &&
       question.max !== null &&
@@ -637,7 +685,33 @@ export const templateQuestionSchema = z
     min: question.type === 'number' ? question.min : null,
     max: question.type === 'number' ? question.max : null,
     meterTypeId: question.type === 'meter' ? question.meterTypeId : null,
+    options: question.type === 'single_select' ? question.options : [],
+    failOptions:
+      question.type === 'single_select' ? question.failOptions : [],
   }));
+
+/** Who and what a template applies to; empty lists place no limit (TMP-008). */
+export const templateEligibilitySchema = z.object({
+  plantTypeIds: idList.default([]),
+  categoryIds: idList.default([]),
+  disciplineIds: idList.default([]),
+  teamIds: idList.default([]),
+  userIds: idList.default([]),
+});
+export type TemplateEligibility = z.output<typeof templateEligibilitySchema>;
+
+const recurrenceSchema = z
+  .object({
+    frequency: z.enum(SCHEDULE_FREQUENCIES),
+    customUnit: z.enum(SCHEDULE_UNITS).nullable().default(null),
+    customCount: z.number().int().min(1).max(366).nullable().default(null),
+  })
+  .refine(
+    (data) =>
+      data.frequency !== 'custom' || (!!data.customUnit && !!data.customCount),
+    { path: ['customCount'], message: 'Give the custom interval.' },
+  );
+export type TemplateRecurrence = z.output<typeof recurrenceSchema>;
 
 export const createTemplateSchema = z.object({
   name: requiredText('Template name', 120),
@@ -647,21 +721,74 @@ export const createTemplateSchema = z.object({
 });
 export type CreateTemplateInput = z.input<typeof createTemplateSchema>;
 
+/** Every follow-up must follow an earlier question (no loops). */
+const questionList = z
+  .array(templateQuestionSchema)
+  .max(100, 'Use 100 questions or fewer.')
+  .superRefine((questions, ctx) => {
+    const ids = questions.map((question) => question.id);
+    if (new Set(ids).size !== ids.length)
+      ctx.addIssue({ code: 'custom', message: 'Each question needs its own id.' });
+    questions.forEach((question, index) => {
+      const condition = question.showIf;
+      if (!condition) return;
+      const parentIndex = ids.indexOf(condition.questionId);
+      const parent = questions[parentIndex];
+      const path = [index, 'showIf'];
+      if (!parent || parentIndex >= index) {
+        ctx.addIssue({
+          code: 'custom',
+          path,
+          message: 'A follow-up must follow an earlier question.',
+        });
+        return;
+      }
+      if (
+        condition.when !== 'values' &&
+        !questionCanFail(parent as TemplateQuestion)
+      )
+        ctx.addIssue({
+          code: 'custom',
+          path,
+          message: 'That question cannot fail; choose the answers instead.',
+        });
+      if (condition.when === 'values') {
+        const allowed =
+          parent.type === 'single_select'
+            ? parent.options
+            : parent.type === 'yes_no'
+              ? ['yes', 'no']
+              : parent.type === 'pass_fail'
+                ? ['pass', 'fail']
+                : null;
+        if (!allowed)
+          ctx.addIssue({
+            code: 'custom',
+            path,
+            message:
+              'Follow a yes/no, pass/fail or single-selection question to choose answers.',
+          });
+        else if (condition.values.some((value) => !allowed.includes(value)))
+          ctx.addIssue({
+            code: 'custom',
+            path,
+            message: 'Choose answers the earlier question offers.',
+          });
+      }
+    });
+  });
+
 /** Saves the draft version; a published template gets a new draft. */
 export const saveTemplateDraftSchema = z.object({
   name: requiredText('Template name', 120).optional(),
   description: optionalText('Description', 500),
   approvalMode: z.enum(APPROVAL_MODES).optional(),
-  questions: z
-    .array(templateQuestionSchema)
-    .max(100, 'Use 100 questions or fewer.')
-    .refine(
-      (questions) =>
-        new Set(questions.map((question) => question.id)).size ===
-        questions.length,
-      { message: 'Each question needs its own id.' },
-    )
-    .optional(),
+  questions: questionList.optional(),
+  eligibility: templateEligibilitySchema.optional(),
+  separation: z.enum(SEPARATION_RULES).optional(),
+  requireCorrectiveAction: z.boolean().optional(),
+  requireRepairEvidence: z.boolean().optional(),
+  recurrence: recurrenceSchema.nullable().optional(),
 });
 export type SaveTemplateDraftInput = z.input<typeof saveTemplateDraftSchema>;
 
@@ -669,6 +796,22 @@ export const listTemplatesQuerySchema = z.object({
   purpose: z.enum(TEMPLATE_PURPOSES).optional(),
   includeArchived: booleanQuery,
 });
+
+/** A copy of the template as a new Draft (TMP-001). */
+export const duplicateTemplateSchema = z.object({
+  name: requiredText('Template name', 120),
+});
+export type DuplicateTemplateInput = z.input<typeof duplicateTemplateSchema>;
+
+/**
+ * Publishing a new version: future checks always use it; with
+ * applyToUnstarted, checks not yet started move to it too (TMP-005). Started,
+ * submitted and completed checks never change (TMP-006).
+ */
+export const publishTemplateSchema = z.object({
+  applyToUnstarted: z.boolean().default(false),
+});
+export type PublishTemplateInput = z.input<typeof publishTemplateSchema>;
 
 export const assignReceptionSchema = z.object({
   templateId: requiredId('Reception template'),
@@ -701,6 +844,207 @@ export const returnReceptionSchema = z.object({
   comment: requiredText('Comment', 1000),
 });
 export type ReturnReceptionInput = z.input<typeof returnReceptionSchema>;
+
+// -------------------------------------------------------------- schedules
+
+/** An assignee id: blank or null means none. */
+const assigneeId = z
+  .union([z.literal(''), id])
+  .nullable()
+  .optional()
+  .transform((value) => value || null);
+
+/** A check goes to a user, a team and/or a discipline (Appendix B). */
+const assigneeFields = {
+  assigneeUserId: assigneeId,
+  assigneeTeamId: assigneeId,
+  assigneeDisciplineId: assigneeId,
+};
+const hasAssignee = (data: {
+  assigneeUserId: string | null;
+  assigneeTeamId: string | null;
+  assigneeDisciplineId: string | null;
+}) =>
+  !!(data.assigneeUserId || data.assigneeTeamId || data.assigneeDisciplineId);
+const assigneeMessage = {
+  path: ['assigneeUserId'],
+  message: 'Assign it to a user, a team or a discipline.',
+};
+
+const scheduleFields = {
+  name: requiredText('Schedule name', 120),
+  frequency: z.enum(SCHEDULE_FREQUENCIES, { error: 'Choose how often.' }),
+  customUnit: z.enum(SCHEDULE_UNITS).nullable().default(null),
+  customCount: z
+    .number()
+    .int('Use a whole number.')
+    .min(1, 'Use 1 or more.')
+    .max(366, 'Use 366 or fewer.')
+    .nullable()
+    .default(null),
+  basis: z.enum(SCHEDULE_BASES).default('completion'),
+  startOn: isoDate,
+  requiresApproval: z.boolean().default(false),
+  ...assigneeFields,
+};
+
+const customGiven = (data: {
+  frequency: string;
+  customUnit: string | null;
+  customCount: number | null;
+}) => data.frequency !== 'custom' || (!!data.customUnit && !!data.customCount);
+const customMessage = {
+  path: ['customCount'],
+  message: 'Give the custom interval, e.g. every 6 weeks.',
+};
+
+/** One schedule per plant chosen (SCH-001..003). */
+export const createScheduleSchema = z
+  .object({
+    ...scheduleFields,
+    templateId: requiredId('Template'),
+    plantIds: idList.refine((ids) => ids.length > 0, 'Choose at least one plant.'),
+  })
+  .refine(customGiven, customMessage)
+  .refine(hasAssignee, assigneeMessage);
+export type CreateScheduleInput = z.input<typeof createScheduleSchema>;
+
+export const updateScheduleSchema = z
+  .object(scheduleFields)
+  .refine(customGiven, customMessage)
+  .refine(hasAssignee, assigneeMessage);
+export type UpdateScheduleInput = z.input<typeof updateScheduleSchema>;
+
+export const pauseScheduleSchema = z.object({
+  reason: requiredText('Reason', 500),
+});
+export type PauseScheduleInput = z.input<typeof pauseScheduleSchema>;
+
+export const listSchedulesQuerySchema = z.object({
+  plantId: id.optional(),
+  templateId: id.optional(),
+  includeArchived: booleanQuery,
+});
+export type ListSchedulesQuery = z.input<typeof listSchedulesQuerySchema>;
+
+// ----------------------------------------------------------------- checks
+
+/** A check assigned outside any schedule (SCH-004, CHK-001). */
+export const createCheckSchema = z
+  .object({
+    plantId: requiredId('Plant'),
+    templateId: requiredId('Template'),
+    dueOn: optionalDate,
+    requiresReview: z.boolean().optional(),
+    ...assigneeFields,
+  })
+  .refine(hasAssignee, assigneeMessage);
+export type CreateCheckInput = z.input<typeof createCheckSchema>;
+
+export const listChecksQuerySchema = paginationQuerySchema.extend({
+  view: z.enum(CHECK_VIEWS).default('mine'),
+  status: z.enum([...CHECK_STATUSES, 'overdue']).optional(),
+  plantId: id.optional(),
+  siteId: id.optional(),
+  templateId: id.optional(),
+  defectId: id.optional(),
+  search: z.string().trim().max(100).optional(),
+});
+export type ListChecksQuery = z.input<typeof listChecksQuerySchema>;
+
+export const assignCheckSchema = z
+  .object(assigneeFields)
+  .refine(hasAssignee, assigneeMessage);
+export type AssignCheckInput = z.input<typeof assignCheckSchema>;
+
+/** Moves one check; the recurring rule is untouched (SCH-AC-04). */
+export const rescheduleCheckSchema = z.object({
+  dueOn: isoDate,
+  reason: optionalText('Reason', 500),
+});
+export type RescheduleCheckInput = z.input<typeof rescheduleCheckSchema>;
+
+export const saveCheckAnswersSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string().min(1).max(40),
+        value: answerValue,
+        comment: optionalText('Comment', 1000),
+      }),
+    )
+    .max(200),
+  /** Required to change a submitted check (CHK-010). */
+  reason: optionalText('Reason', 500),
+});
+export type SaveCheckAnswersInput = z.input<typeof saveCheckAnswersSchema>;
+
+export const reviewCheckSchema = z
+  .object({
+    decision: z.enum(['approve', 'reject', 'return']),
+    comment: optionalText('Comment', 1000),
+    /** Approve a verification despite the separation block (DFW-009). */
+    override: z.boolean().default(false),
+  })
+  .superRefine((data, ctx) => {
+    if (data.decision !== 'approve' && !data.comment)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['comment'],
+        message:
+          data.decision === 'return'
+            ? 'Say what needs correcting.'
+            : 'Give the reason for rejecting it.',
+      });
+    if (data.override && !data.comment)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['comment'],
+        message: 'Give the reason for the override.',
+      });
+  });
+export type ReviewCheckInput = z.input<typeof reviewCheckSchema>;
+
+export const reasonSchema = z.object({
+  reason: requiredText('Reason', 500),
+});
+export type ReasonInput = z.input<typeof reasonSchema>;
+
+// ---------------------------------------------------------------- defects
+
+export const listDefectsQuerySchema = paginationQuerySchema.extend({
+  status: z.enum([...DEFECT_STATUSES, 'active']).optional(),
+  severity: z.enum(DEFECT_SEVERITIES).optional(),
+  plantId: id.optional(),
+  siteId: id.optional(),
+  assignedToMe: booleanQuery,
+  search: z.string().trim().max(100).optional(),
+});
+export type ListDefectsQuery = z.input<typeof listDefectsQuerySchema>;
+
+/** Classify and assign (Appendix C): severity and/or the assignee. */
+export const assignDefectSchema = z.object({
+  /** Left out: unchanged; null or blank: unassigned. */
+  assigneeUserId: clearableId,
+  severity: z.enum(DEFECT_SEVERITIES).optional(),
+});
+export type AssignDefectInput = z.input<typeof assignDefectSchema>;
+
+export const recordDefectWorkSchema = z.object({
+  correctiveAction: optionalText('Corrective action', 2000),
+  repairNotes: optionalText('Repair notes', 2000),
+});
+export type RecordDefectWorkInput = z.input<typeof recordDefectWorkSchema>;
+
+export const startVerificationSchema = z.object({
+  templateId: requiredId('Verification template'),
+});
+export type StartVerificationInput = z.input<typeof startVerificationSchema>;
+
+export const closeDefectSchema = z.object({
+  note: optionalText('Note', 1000),
+});
+export type CloseDefectInput = z.input<typeof closeDefectSchema>;
 
 // --------------------------------------------------------- meter readings
 

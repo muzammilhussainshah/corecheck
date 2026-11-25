@@ -509,6 +509,25 @@ export class PlantsService {
       );
     }
 
+    // An open Defect raised by a question that took the plant Offline keeps
+    // it there until the Defect is closed, unless an authorised user
+    // overrides it with a reason (DFW-009, DEF-AC-05).
+    const defects = await this.blockingDefects(plant.id);
+    if (defects.length > 0) {
+      if (!input.overrideDefects)
+        throw conflict(
+          ERROR_CODES.DEFECTS_OPEN,
+          `Open Defects keep this plant Restricted/Offline: ${defects
+            .map((defect) => `${defect.ref} ${defect.questionText}`)
+            .join('; ')}. Close them, or override with a reason.`,
+          { defects },
+        );
+      if (!auth.permissions.has('defects.override_restriction'))
+        throw forbidden(
+          'Returning plant to service with an open Defect needs the Defect override permission.',
+        );
+    }
+
     const status = plant.approvedAt ? 'approved' : 'pending_reception';
     // Going Online needs the plant information required before approval
     // too (PLT-008). The documents override (DOC-008) does not cover it.
@@ -552,11 +571,54 @@ export class PlantsService {
       note: input.note ?? null,
       action: 'plant.returned_to_service',
       summary: `${status === 'approved' ? 'Returned to service' : 'Lifted the restriction on'} ${plant.assetId} ${plant.name}${overriding ? ' (override)' : ''}`,
-      metadata: overriding
-        ? { override: true, reviewOn: input.reviewOn, documents: blockers }
-        : undefined,
+      metadata:
+        overriding || defects.length
+          ? {
+              ...(overriding && {
+                override: true,
+                reviewOn: input.reviewOn,
+                documents: blockers,
+              }),
+              ...(defects.length && { defectOverride: true, defects }),
+            }
+          : undefined,
     });
+    if (defects.length)
+      await this.record(
+        auth,
+        'plant.defect_override',
+        plant.id,
+        `Returned ${plant.assetId} ${plant.name} to service despite open Defects ${defects.map((defect) => defect.ref).join(', ')}`,
+        undefined,
+        undefined,
+        { reason: input.note, defects },
+      );
     return this.get(auth, id);
+  }
+
+  /**
+   * Open Defects whose question also took the plant Offline (TMP-009): they
+   * keep it out of service until closed or overridden.
+   */
+  async blockingDefects(plantId: string): Promise<PlantDetail['blockingDefects']> {
+    const rows = (await this.db.query(
+      `select id, ref_no as "refNo", severity, question_text as "questionText"
+         from corecheck.defects
+        where plant_id = $1 and restricts_plant and status <> 'closed'
+        order by ref_no`,
+      [plantId],
+    )) as Array<{
+      id: string;
+      refNo: number;
+      severity: PlantDetail['blockingDefects'][number]['severity'];
+      questionText: string;
+    }>;
+    return rows.map((row) => ({
+      id: row.id,
+      ref: `DEF-${String(row.refNo).padStart(6, '0')}`,
+      severity: row.severity,
+      questionText: row.questionText,
+    }));
   }
 
   async setArchived(
@@ -733,6 +795,11 @@ export class PlantsService {
         plant.status === 'restricted' &&
         !heldByReception &&
         has('plant_status.return_to_service'),
+      overrideDefects:
+        active &&
+        plant.status === 'restricted' &&
+        has('plant_status.return_to_service') &&
+        has('defects.override_restriction'),
       printQr: has('plant.qr'),
     };
   }
@@ -1062,6 +1129,16 @@ export class PlantsService {
         : null,
       heldByReception: held,
       receptionBlockers: held ? await this.approvalBlockers(plant) : [],
+      blockingDefects: await this.blockingDefects(plant.id),
+      openDefects: Number(
+        (
+          (await this.db.query(
+            `select count(*)::int as n from corecheck.defects
+              where plant_id = $1 and status <> 'closed'`,
+            [plant.id],
+          )) as Array<{ n: number }>
+        )[0]?.n ?? 0,
+      ),
       createdAt: plant.createdAt.toISOString(),
       createdBy: nameOf(plant.createdBy) ?? 'Unknown',
       capabilities: this.capabilities(auth, plant, held),

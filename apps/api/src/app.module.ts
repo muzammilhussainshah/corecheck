@@ -4,6 +4,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthGuard } from './auth/auth.guard.js';
 import { AuthModule } from './auth/auth.module.js';
+import { ChecksModule } from './checks/checks.module.js';
 import { TenantTransactionInterceptor } from './auth/tenant-transaction.interceptor.js';
 import { CommonModule } from './common/common.module.js';
 import { AllExceptionsFilter } from './common/exception.filter.js';
@@ -11,6 +12,7 @@ import { APP_CONFIG, type AppConfig } from './config/app-config.js';
 import { AppConfigModule } from './config/config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { OrganisationModule } from './organisation/organisation.module.js';
 import { PlantConfigModule } from './plant-config/plant-config.module.js';
 import { PlantsModule } from './plants/plants.module.js';
@@ -26,6 +28,7 @@ import { UsersModule } from './users/users.module.js';
     CommonModule,
     DatabaseModule,
     AuditModule,
+    NotificationsModule,
     ThrottlerModule.forRootAsync({
       inject: [APP_CONFIG],
       useFactory: (config: AppConfig) => ({
@@ -42,6 +45,7 @@ import { UsersModule } from './users/users.module.js';
     PlantConfigModule,
     PlantsModule,
     TemplatesModule,
+    ChecksModule,
     PocModule,
   ],
   providers: [

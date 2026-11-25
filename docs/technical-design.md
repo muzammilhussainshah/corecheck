@@ -1,4 +1,4 @@
-# CoreCheck — Milestone 1 Technical Design
+# CoreCheck — Technical Design (Milestones 1–3)
 
 Covers the decisions FRD §25.1 requires before build approval, the NFR-004
 targets, and how each Milestone 1 acceptance criterion is evidenced.
@@ -196,4 +196,91 @@ build) and `npm run test:e2e` (browser journey; needs built apps).
 | Item               | Status                                                                                                                                                                     |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Staging sign-off   | Not yet deployed. Needs `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `WEB_APP_URL` on Render, then `db:migrate`; see `docs/environments.md`. |
-| Checks and Defects | Plant profile tabs are placeholders; a reception failure sets the plant Offline but raises no defect until the defects milestone.                                          |
+| Checks and Defects | Closed in Milestone 3 (sections 15–17): the Checks and Defects tabs are live, and a reception answer with a defect trigger raises a Defect.                                 |
+
+## 15. Milestone 3 design (FRD 10, 11, 12, 13)
+
+Migration `1761700000000-checks-and-defects.ts`.
+
+- **Templates.** Purposes: reception, operational, technical, maintenance,
+  Defect verification. A version also holds who and what it applies to
+  (plant types, categories, disciplines, teams, users; empty means no limit),
+  the separation-of-duties rule, whether corrective action or repair
+  evidence is mandatory, and a suggested recurrence. Questions gain single
+  selection (choices and failing choices) and conditional follow-ups that
+  may only follow an earlier question; a follow-up not asked is never
+  mandatory and cannot fail. Versions saved before Milestone 3 read the same
+  (`normaliseQuestion`). Duplicate makes a new Draft. Publishing can move
+  checks of earlier versions that nobody has started or answered onto the new
+  version; anything started keeps its version.
+- **Schedules.** One schedule per plant and template, daily to annual or a
+  custom interval, from its own start date. A schedule keeps one check
+  waiting at a time (unique index); the next is due one interval after the
+  completion date (or the last due date on a fixed cycle). Weekly work opens
+  on the Monday of its week, monthly and longer on the first of the month, in
+  the organisation's time zone. The trigger `plant_schedules_follow_status`
+  pauses schedules and withdraws unstarted generated checks (kept as
+  cancelled, audited) when plant leaves service, and resumes them one
+  interval after the return-to-service date, whichever code path changed the
+  status. `corecheck.schedule_interval` and `checks/recurrence.ts` calculate
+  intervals the same way (tested against each other). `ScheduleSweepService`
+  runs every `SCHEDULE_SWEEP_MINUTES` (default 15) per organisation under
+  row-level security: generate, make Due, notify Overdue once.
+- **Checks.** Statuses: Scheduled, Due, In Progress, Submitted/Awaiting
+  Review, Returned, Completed, Rejected, Cancelled; Overdue is worked out from
+  the due date, never stored. Answers are saved per question, so several
+  people can work at once; every change is kept in `check_answer_changes`
+  (append-only), with the reason when made after submission. Submission
+  locks the row first: the first valid submission wins and later ones get
+  `ALREADY_SUBMITTED`. Each submission is copied with its answers and
+  evidence. On submission a failed offline trigger restricts the plant and a
+  defect trigger raises a Defect; meter questions are recorded when the check
+  completes. Approval follows the schedule (SCH-011) or, for assigned checks,
+  the template. The web check screen saves only what the user changed and
+  refreshes every 10 seconds while the check is open.
+- **Defects.** Raised only by `DefectRaiser` from a recorded failed answer
+  (check or reception), at most once per answer. Open → In Progress →
+  Closed, reopen by Manager/Admin. Closing needs the Defect's verification
+  check completed (approved where the template requires approval) and the
+  mandatory corrective work. Separation of duties: nobody who answered,
+  changed, added evidence to or submitted the verification may approve it;
+  with no one else able to, Managers and Admins are notified and the Defect
+  waits. An authorised override records its reason. A Defect whose question
+  also took plant Offline blocks return to service until closed, unless a
+  holder of `defects.override_restriction` overrides with a reason. Closing
+  never returns plant to service.
+- **Notifications.** In-app only (`notifications` table, header bell):
+  check due/assigned, overdue, returned, awaiting review, Defect raised and
+  assigned, verification awaiting approval, no separate approver. Email and
+  push come with the notifications milestone.
+
+## 16. Milestone 3 acceptance evidence
+
+| FRD acceptance criterion                                               | Evidence                                                                 |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| A Draft template cannot generate a production check (TMP-AC-01)        | `checks.int-spec.ts`                                                     |
+| Published versions stay reproducible (TMP-AC-02)                       | `checks.int-spec.ts`, `reception.int-spec.ts`                            |
+| A new version never changes a started check (TMP-AC-03)                | `checks.int-spec.ts`                                                     |
+| A defect trigger raises a Defect only on its trigger answer (TMP-AC-04) | `checks.int-spec.ts`, browser test `e2e/tests/milestone-3.spec.ts`      |
+| Recurring rules generate at the right interval and date (SCH-AC-01)    | `checks.int-spec.ts`, `recurrence.spec.ts`                               |
+| Offline plant pauses schedules, history kept (SCH-AC-02)               | `checks.int-spec.ts`                                                     |
+| Return to service resumes from that date (SCH-AC-03)                   | `checks.int-spec.ts`                                                     |
+| A Supervisor reschedules one check, rule unchanged (SCH-AC-04)         | `checks.int-spec.ts`                                                     |
+| Mandatory unanswered question blocks submission (CHK-AC-01)            | `checks.int-spec.ts`, browser test                                       |
+| Two contributors keep attribution (CHK-AC-02)                          | `checks.int-spec.ts`                                                     |
+| A second submission cannot overwrite the first (CHK-AC-03)             | `checks.int-spec.ts`                                                     |
+| Editing a submitted check keeps the original and reason (CHK-AC-04)    | `checks.int-spec.ts`                                                     |
+| Failed answer without trigger raises no Defect (DEF-AC-01)             | `checks.int-spec.ts`                                                     |
+| No closure before verification (DEF-AC-02)                             | `checks.int-spec.ts`, browser test                                       |
+| No approving your own verification under separation (DEF-AC-03)       | `checks.int-spec.ts`, browser test                                       |
+| Closing does not return plant to service (DEF-AC-04)                   | `checks.int-spec.ts`, browser test                                       |
+| Overrides keep the failure and the overriding user (DEF-AC-05)         | `checks.int-spec.ts`, browser test                                       |
+| Check, schedule and Defect data isolated between organisations         | `checks-isolation.int-spec.ts`                                           |
+
+## 17. Milestone 3 items open
+
+| Item                         | Status                                                                                                                                                                                  |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mobile app (FRD 21)          | The mobile app still runs the Milestone 1 offline-sync proof of concept (web: Checks › Mobile sync demo). Completing real checks offline on the phone is not built; confirm whether it belongs to Milestone 3 or the mobile milestone. |
+| Email and push notifications | In-app only; overdue and approval alerts are recorded so Brevo email and push can send them later (NTF-002).                                                                           |
+| Staging sign-off             | Run `db:migrate` on staging; set `SCHEDULE_SWEEP_MINUTES` if 15 minutes is not wanted.                                                                                                  |

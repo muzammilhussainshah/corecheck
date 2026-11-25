@@ -77,6 +77,14 @@ const UNIQUE_MESSAGES: Record<string, { field: string; message: string }> = {
     field: 'templateId',
     message: 'This plant already has a reception check in progress.',
   },
+  checks_one_open_per_schedule: {
+    field: 'scheduleId',
+    message: 'This schedule already has a check waiting to be done.',
+  },
+  defects_one_per_check_answer: {
+    field: 'questionId',
+    message: 'This answer has already raised a Defect.',
+  },
 };
 
 const STATUS_CODES: Partial<Record<number, ErrorCode>> = {
